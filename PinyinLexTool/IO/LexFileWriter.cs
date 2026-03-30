@@ -37,7 +37,8 @@ public sealed class LexFileWriter
         {
             var pinyinBytes = U16LE.GetBytes(n.Pinyin);
             var phraseBytes = U16LE.GetBytes(n.Text);
-            var header = BuildHeader(16 + pinyinBytes.Length + PhraseSep.Length, n.Index, tailBytes);
+            int storageIndex = DisplayIndexToStorageIndex(n.Index);
+            var header = BuildHeader(16 + pinyinBytes.Length + PhraseSep.Length, storageIndex, tailBytes);
             filtered.Add(new Rec(false, pinyinBytes, header, phraseBytes));
         }
 
@@ -222,6 +223,20 @@ public sealed class LexFileWriter
         using var fs = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.Read);
         fs.Position = position;
         fs.Write(value, 0, value.Length);
+    }
+
+    /// <summary>将显示索引值（1-9）转换为存储索引值。</summary>
+    /// <param name="displayIndex">显示索引值（1-9）。</param>
+    /// <returns>存储索引值。</returns>
+    private static int DisplayIndexToStorageIndex(int displayIndex)
+    {
+        const int BASE_OFFSET = 1536; // 0x600
+        
+        // 确保在有效范围内
+        if (displayIndex < 1) displayIndex = 1;
+        if (displayIndex > 9) displayIndex = 9;
+        
+        return BASE_OFFSET + displayIndex;
     }
 }
 

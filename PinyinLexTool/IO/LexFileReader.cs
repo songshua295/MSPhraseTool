@@ -56,14 +56,15 @@ public sealed class LexFileReader
             var pinyin = U16LE.GetString(parts[0]);
             var phrase = U16LE.GetString(parts[1]);
 
-            int index = (int)ReadU32(seg, 6); // header [6..9] 为 index DWORD
+            int storageIndex = (int)ReadU32(seg, 6); // header [6..9] 为 index DWORD
+            int displayIndex = StorageIndexToDisplayIndex(storageIndex);
 
             // 规范化：
             pinyin = pinyin.Trim();
             phrase = phrase.Replace("\r\n", "\n").Trim();
             if (string.IsNullOrWhiteSpace(pinyin) || string.IsNullOrWhiteSpace(phrase)) continue;
 
-            result.Add(new PinyinPhrase(pinyin, index, phrase));
+            result.Add(new PinyinPhrase(pinyin, displayIndex, phrase));
         }
 
         // 排序：按拼音、index
@@ -100,6 +101,20 @@ public sealed class LexFileReader
     {
         if (len < 0) return data[start..];
         return data[start..(start + len)];
+    }
+
+    /// <summary>将存储的索引值转换为显示索引值（1-9）。</summary>
+    /// <param name="storageIndex">从文件读取的存储索引值。</param>
+    /// <returns>显示索引值（1-9）。</returns>
+    private static int StorageIndexToDisplayIndex(int storageIndex)
+    {
+        const int BASE_OFFSET = 1536; // 0x600
+        int displayIndex = storageIndex - BASE_OFFSET;
+        
+        // 确保在有效范围内
+        if (displayIndex < 1) return 1;
+        if (displayIndex > 9) return 9;
+        return displayIndex;
     }
 }
 

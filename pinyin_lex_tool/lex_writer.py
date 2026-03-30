@@ -67,6 +67,49 @@ class LexFileWriter:
         self._write_all(lex_path, filtered)
         return int_overwritten
 
+    def remove_phrases(self, lex_path: str, items: List[Tuple[str, int, str]]) -> int:
+        """删除指定的短语
+
+        Args:
+            lex_path: .lex 文件路径
+            items: 要删除的短语列表 (pinyin, index, text)
+
+        Returns:
+            删除的记录数
+        """
+        if not Path(lex_path).exists():
+            return 0
+
+        existing, learned_tail = self._read_existing_records(lex_path)
+        
+        int_removed = 0
+        filtered = []
+
+        for r in existing:
+            should_remove = False
+            for n_pinyin, n_index, n_text in items:
+                pinyin_bytes = n_pinyin.encode('utf-16-le')
+                phrase_bytes = n_text.encode('utf-16-le')
+                storage_index = self._display_index_to_storage_index(n_index)
+                
+                # 检查拼音、索引和文本都匹配
+                if (self._bytes_equal(pinyin_bytes, r[1]) and 
+                    struct.unpack('<I', r[2][6:10])[0] == storage_index and
+                    self._bytes_equal(phrase_bytes, r[3])):
+                    should_remove = True
+                    break
+            
+            if should_remove:
+                int_removed += 1
+            else:
+                filtered.append(r)
+
+        if int_removed > 0:
+            filtered.sort(key=lambda x: x[1])
+            self._write_all(lex_path, filtered)
+        
+        return int_removed
+
     def _init_lex_file(self, path: str) -> None:
         """初始化空的.lex 文件"""
         dir_path = Path(path).parent

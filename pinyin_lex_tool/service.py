@@ -143,6 +143,80 @@ class PinyinLexService:
 
         return phrases
 
+    def update_single_phrase(self, lex_path: str, pinyin: str, index: int, text: str) -> dict:
+        """更新单个短语，支持智能移动
+
+        Args:
+            lex_path: .lex 文件路径
+            pinyin: 拼音
+            index: 索引 (1-9)
+            text: 文本
+
+        Returns:
+            操作结果字典，包含 moved/updated/inserted 等状态
+        """
+        # 获取现有短语
+        existing_phrases = self.list_phrases(lex_path, pinyin)
+        
+        # 检查文本是否已在其他位置
+        existing_with_text = None
+        for phrase in existing_phrases:
+            if phrase.text == text and phrase.index != index:
+                existing_with_text = phrase
+                break
+        
+        # 检查目标索引是否已有内容
+        existing_at_index = None
+        for phrase in existing_phrases:
+            if phrase.index == index:
+                existing_at_index = phrase
+                break
+        
+        # 准备更新数据
+        result = {
+            'moved': False,
+            'updated': False,
+            'inserted': False,
+            'old_index': None
+        }
+        
+        if existing_with_text:
+            # 情况1：文本已存在，需要移动
+            result['moved'] = True
+            result['old_index'] = existing_with_text.index
+            
+            # 删除原位置的文本
+            items_to_remove = [(pinyin, existing_with_text.index, text)]
+            writer = LexFileWriter()
+            writer.remove_phrases(lex_path, items_to_remove)
+            
+            # 在新位置插入
+            items_to_add = [(pinyin, index, text)]
+            writer.upsert(lex_path, items_to_add)
+            
+        elif existing_at_index:
+            # 情况2：目标索引有内容，需要修改
+            result['updated'] = True
+            
+            # 删除原内容
+            items_to_remove = [(pinyin, index, existing_at_index.text)]
+            writer = LexFileWriter()
+            writer.remove_phrases(lex_path, items_to_remove)
+            
+            # 插入新内容
+            items_to_add = [(pinyin, index, text)]
+            writer.upsert(lex_path, items_to_add)
+            
+        else:
+            # 情况3：新插入
+            result['inserted'] = True
+            
+            items_to_add = [(pinyin, index, text)]
+            writer = LexFileWriter()
+            writer.upsert(lex_path, items_to_add)
+        
+        return result
+
     def _validate_pinyin(self, pinyin: str) -> bool:
         """校验拼音：最多 32 个小写字母"""
         if not pinyin or len(pinyin) > 32:

@@ -5,7 +5,15 @@ from typing import Optional
 
 from .service import PinyinLexService
 from .lex_reader import LexFileReader
-from .paths import get_user_lex_path
+
+
+def get_user_lex_path() -> str:
+    """获取用户微软拼音自定义短语文件路径"""
+    import os
+    appdata = os.environ.get("APPDATA", "")
+    if not appdata:
+        raise RuntimeError("无法获取 APPDATA 环境变量")
+    return os.path.join(appdata, "Microsoft", "InputMethod", "Chs", "ChsPinyinEUDPv1.lex")
 
 
 def cmd_export(args: argparse.Namespace) -> int:
@@ -169,6 +177,112 @@ def cmd_delete(args: argparse.Namespace) -> int:
         return 1
 
 
+def cmd_edit(args: argparse.Namespace) -> int:
+    """交互式修改单个短语命令"""
+    lex_path = args.lex if args.lex else get_user_lex_path()
+    service = PinyinLexService(LexFileReader())
+    
+    print("=== 交互式短语修改 ===")
+    print(f"当前 .lex 文件：{lex_path}")
+    
+    # 步骤1：输入拼音
+    while True:
+        pinyin = input("请输入拼音（或输入 'quit' 退出）: ").strip()
+        if pinyin.lower() == 'quit':
+            return 0
+        if not pinyin:
+            print("拼音不能为空，请重新输入")
+            continue
+        if not service._validate_pinyin(pinyin):
+            print("拼音格式不正确，只能包含字母，最多32个字符")
+            continue
+        break
+    
+    # 步骤2：显示现有短语
+    print(f"\n拼音 '{pinyin}' 的现有短语：")
+    existing_phrases = service.list_phrases(lex_path, pinyin)
+    
+    if not existing_phrases:
+        print("  （没有找到现有短语）")
+    else:
+        print(f"{'索引':<6} {'文本'}")
+        print("-" * 30)
+        for phrase in existing_phrases:
+            print(f"{phrase.index:<6} {phrase.text}")
+    
+    # 步骤3：输入索引
+    while True:
+        index_input = input(f"\n请输入要修改/插入的索引 (1-9) 或输入 'quit' 退出: ").strip()
+        if index_input.lower() == 'quit':
+            return 0
+        try:
+            index = int(index_input)
+            if index < 1 or index > 9:
+                print("索引必须在 1-9 之间")
+                continue
+            break
+        except ValueError:
+            print("请输入有效的数字")
+            continue
+    
+    # 检查该索引是否已有内容
+    existing_at_index = None
+    for phrase in existing_phrases:
+        if phrase.index == index:
+            existing_at_index = phrase
+            break
+    
+    if existing_at_index:
+        print(f"索引 {index} 当前内容：{existing_at_index.text}")
+        action = "修改"
+    else:
+        print(f"索引 {index} 当前为空")
+        action = "插入"
+    
+    # 步骤4：输入文本
+    while True:
+        text = input(f"请输入要{action}的文本（或输入 'quit' 退出）: ").strip()
+        if text.lower() == 'quit':
+            return 0
+        if not text:
+            print("文本不能为空")
+            continue
+        if len(text) > 64:
+            print("文本长度不能超过64个字符")
+            continue
+        break
+    
+    # 检查该文本是否已在其他位置
+    existing_with_text = None
+    for phrase in existing_phrases:
+        if phrase.text == text and phrase.index != index:
+            existing_with_text = phrase
+            break
+    
+    if existing_with_text:
+        print(f"注意：文本 '{text}' 已存在于索引 {existing_with_text.index}")
+        confirm = input(f"是否将其移动到索引 {index}？(y/N): ").strip().lower()
+        if confirm != 'y':
+            print("操作已取消")
+            return 0
+    
+    # 执行更新
+    try:
+        result = service.update_single_phrase(lex_path, pinyin.lower(), index, text)
+        if result['moved']:
+            print(f"✓ 已将文本 '{text}' 从索引 {result['old_index']} 移动到索引 {index}")
+        elif result['updated']:
+            print(f"✓ 已修改索引 {index} 的文本为：{text}")
+        else:
+            print(f"✓ 已在索引 {index} 插入新文本：{text}")
+        
+        print(f"拼音 '{pinyin}' 的短语更新完成")
+        return 0
+    except Exception as e:
+        print(f"错误：{e}")
+        return 1
+
+
 def main(args: Optional[list] = None) -> int:
     """主入口"""
     parser = argparse.ArgumentParser(
@@ -217,6 +331,12 @@ def main(args: Optional[list] = None) -> int:
       --force, -f     强制删除，不提示确认
       --dry-run, -n   只显示将要删除的文件，不实际删除
 
+  edit      交互式修改单个短语
+    用法: main edit [--lex LEX]
+    参数:
+      --lex       可选：指定 .lex 文件路径
+    说明: 交互式修改，会提示输入拼音、索引和文本
+
 示例:
   main export phrases.txt
   main import phrases.txt
@@ -224,6 +344,7 @@ def main(args: Optional[list] = None) -> int:
   main debug --verbose
   main convert --format 1 --input baidu.txt
   main delete --dry-run
+  main edit
   
 使用 "main <命令> --help" 查看命令的详细帮助信息
 """
@@ -271,6 +392,11 @@ def main(args: Optional[list] = None) -> int:
     delete_parser.add_argument('--force', '-f', action='store_true', help='强制删除，不提示确认')
     delete_parser.add_argument('--dry-run', '-n', action='store_true', help='只显示将要删除的文件，不实际删除')
     delete_parser.set_defaults(func=cmd_delete)
+
+    # edit 命令
+    edit_parser = subparsers.add_parser('edit', help='交互式修改单个短语')
+    edit_parser.add_argument('--lex', help='可选：指定 .lex 文件路径')
+    edit_parser.set_defaults(func=cmd_edit)
 
     parsed_args = parser.parse_args(args)
 

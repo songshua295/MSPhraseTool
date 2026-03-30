@@ -60,3 +60,6 @@ MSPhraseTool/
 
 # 添加库
 !requirements.txt
+
+# 环境变量配置文件.env
+.env

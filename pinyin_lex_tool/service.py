@@ -18,11 +18,11 @@ class PinyinLexService:
         self._reader = reader
 
     def export(self, lex_path: str, output_path: str) -> None:
-        """将 .lex 中的短语导出为 TXT 文件
+        """将 .lex 中的短语导出为 CSV 文件
 
         Args:
             lex_path: .lex 路径
-            output_path: 输出 TXT 路径
+            output_path: 输出 CSV 路径
         """
         phrases = self._reader.read_all(lex_path)
 
@@ -42,11 +42,11 @@ class PinyinLexService:
 
     def import_phrases(self, lex_path: str, input_path: str, backup: bool = True, 
                        dry_run: bool = False, verbose: bool = False) -> None:
-        """从 TXT 导入短语到 .lex 文件
+        """从 CSV 导入短语到 .lex 文件
 
         Args:
             lex_path: .lex 文件路径
-            input_path: 输入 TXT，格式：拼音 空格 索引 空格 文本
+            input_path: 输入 CSV，格式：pinyin,index,text
             backup: 是否备份原文件
             dry_run: 只校验不落盘
             verbose: 输出详细信息

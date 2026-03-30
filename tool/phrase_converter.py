@@ -15,6 +15,7 @@ import os
 import struct
 import sys
 import time
+import csv
 from collections import defaultdict
 from typing import List, NamedTuple, Optional
 
@@ -305,6 +306,7 @@ def save_sogou(path: str, table: Table):
 
 
 # -------------------- Rime --------------------
+
 def load_rime(path: str) -> Table:
     """加载 Rime 格式文件，使用 utf-8 编码"""
     lines = read_text_file(path, "utf-8")
@@ -342,8 +344,56 @@ def save_rime(path: str, table: Table):
     write_text_file(path, lines, "utf-8")
 
 
+# -------------------- CSV 格式 --------------------
+def load_csv(path: str) -> Table:
+    """加载 CSV 格式文件，使用 utf-8 编码
+    
+    CSV 格式（与 PinyinPhrase 结构一致）：
+      pinyin,index,text
+    
+    例如：
+      a,1,啊
+      aa,1,阿
+      aab,1,阿爸
+    """
+    lines = read_text_file(path, "utf-8")
+    tbl = []
+
+    for ln in lines:
+        ln = ln.strip()
+        if not ln or ln.startswith("#") or ln.startswith(";"):
+            continue
+
+        try:
+            parts = ln.split(",")
+            if len(parts) < 3:
+                continue
+
+            pinyin = parts[0].strip()
+            index = int(parts[1].strip())
+            text = parts[2].strip()
+
+            # 转换为内部 Entry 格式：word=短语, code=拼音, order=index
+            tbl.append(Entry(text, pinyin, index))
+        except (ValueError, IndexError):
+            print(f"警告：跳过无效行: {ln}")
+            continue
+
+    return tbl
+
+
+def save_csv(path: str, table: Table):
+    """保存 CSV 格式文件，使用 utf-8 编码
+    
+    输出格式：pinyin,index,text
+    """
+    lines = []
+    for e in table:
+        lines.append(f"{e.code},{e.order},{e.word}")
+    write_text_file(path, lines, "utf-8")
+
+
 # -------------------- 多多（核心修正） --------------------
-def load_duoduo(path: str) -> Table:
     """加载多多格式文件，使用 utf-8 编码
     
     多多格式：
@@ -478,11 +528,11 @@ def save_ms(path: str, table: Table):
 
 
 # -------------------- 转换函数 --------------------
-def convert_phrases(src_format: int, src_path: str, out_dir: str = "out") -> bool:
+def convert_phrases(src_format: str, src_path: str, out_dir: str = "out") -> bool:
     """转换自定义短语格式
     
     Args:
-        src_format: 源格式 (1:百度, 2:搜狗, 3:微软, 4:Rime, 5:多多)
+        src_format: 源格式 (bd:百度, sg:搜狗, wr:微软, rime:Rime, dd:多多)
         src_path: 源文件路径
         out_dir: 输出文件夹路径
         
@@ -494,18 +544,21 @@ def convert_phrases(src_format: int, src_path: str, out_dir: str = "out") -> boo
         return False
     
     # 加载源文件
-    if src_format == 1:
+    if src_format == "bd":
         table = load_baidu(src_path)
-    elif src_format == 2:
+    elif src_format == "sg":
         table = load_sogou(src_path)
-    elif src_format == 3:
+    elif src_format == "wr":
         table = load_ms(src_path)
-    elif src_format == 4:
+    elif src_format == "rime":
         table = load_rime(src_path)
-    elif src_format == 5:
+    elif src_format == "dd":
         table = load_duoduo(src_path)
+    elif src_format == "csv":
+        table = load_csv(src_path)
     else:
         print(f"错误: 不支持的源格式: {src_format}")
+        print("支持的格式: bd(百度), sg(搜狗), wr(微软), rime(Rime), dd(多多), csv(CSV)")
         return False
     
     if not table:
@@ -523,6 +576,7 @@ def convert_phrases(src_format: int, src_path: str, out_dir: str = "out") -> boo
     save_ms(os.path.join(out_dir, "微软.dat"), table)
     save_rime(os.path.join(out_dir, "Rime自定义短语.txt"), table)
     save_duoduo(os.path.join(out_dir, "多多自定义短语.txt"), table)
+    save_csv(os.path.join(out_dir, "自定义短语.csv"), table)
     
     print(f"转换完成！输出文件已保存到 {out_dir} 文件夹下")
     return True
@@ -532,15 +586,25 @@ def convert_phrases(src_format: int, src_path: str, out_dir: str = "out") -> boo
 def interactive_main():
     """交互式运行模式"""
     print("============ 一键多格式互转（order=同 code 内顺序） ============")
-    print("1. 百度 → 搜狗 + 微软 + Rime + 多多")
-    print("2. 搜狗 → 百度 + 微软 + Rime + 多多")
-    print("3. 微软 → 百度 + 搜狗 + Rime + 多多")
-    print("4. Rime → 百度 + 搜狗 + 微软 + 多多")
-    print("5. 多多 → 百度 + 搜狗 + 微软 + Rime")
+    print("bd. 百度 → 搜狗 + 微软 + Rime + 多多 + CSV")
+    print("sg. 搜狗 → 百度 + 微软 + Rime + 多多 + CSV")
+    print("wr. 微软 → 百度 + 搜狗 + Rime + 多多 + CSV")
+    print("rime. Rime → 百度 + 搜狗 + 微软 + 多多 + CSV")
+    print("dd. 多多 → 百度 + 搜狗 + 微软 + Rime + CSV")
+    print("csv. CSV → 百度 + 搜狗 + 微软 + Rime + 多多")
     print("============================================================")
     
-    src = int(input("请选择源格式 (默认 1): ") or 1)
-    src_path = input("请输入源文件路径: ").strip(' "')
+    src = input("请选择源格式 (默认 bd): ").strip() or "bd"
+    
+    # 如果是微软格式，默认使用系统 lex 文件路径
+    if src == "wr":
+        import os
+        default_path = os.path.join(os.getenv("APPDATA", ""), "Microsoft", "InputMethod", "Chs", "ChsPinyinEUDPv1.lex")
+        src_path = input(f"请输入源文件路径 (默认：{default_path}): ").strip(' "')
+        if not src_path:
+            src_path = default_path
+    else:
+        src_path = input("请输入源文件路径：").strip(' "')
     
     success = convert_phrases(src, src_path)
     if success:
@@ -560,25 +624,25 @@ def main():
         epilog="""
 使用示例:
   # 交互式模式
-  python 自定义短语类型转换.py
+  python phrase_converter.py
   
   # 命令行模式
-  python 自定义短语类型转换.py --format 1 --input baidu.txt --output my_output
+  python phrase_converter.py --format bd --input baidu.txt --output my_output
   
   # 支持的格式:
-  #   1: 百度格式
-  #   2: 搜狗格式  
-  #   3: 微软格式
-  #   4: Rime格式
-  #   5: 多多格式
+  #   bd: 百度格式
+  #   sg: 搜狗格式  
+  #   wr: 微软格式
+  #   rime: Rime格式
+  #   dd: 多多格式
         """
     )
     
     parser.add_argument(
         "--format", "-f",
-        type=int,
-        choices=[1, 2, 3, 4, 5],
-        help="源文件格式 (1:百度, 2:搜狗, 3:微软, 4:Rime, 5:多多)"
+        type=str,
+        choices=["bd", "sg", "wr", "rime", "dd", "csv"],
+        help="源文件格式 (bd:百度, sg:搜狗, wr:微软, rime:Rime, dd:多多, csv:CSV)"
     )
     
     parser.add_argument(
@@ -605,11 +669,12 @@ def main():
     # 列出支持的格式
     if args.list_formats:
         print("支持的格式:")
-        print("  1: 百度格式 (code=order,word)")
-        print("  2: 搜狗格式 (code,order=word)")
-        print("  3: 微软格式 (二进制 .dat 文件)")
-        print("  4: Rime格式 (word\\tcode\\tweight)")
-        print("  5: 多多格式 (word\\tcode 或 word\\tcode\\torder)")
+        print("  bd: 百度格式 (code=order,word)")
+        print("  sg: 搜狗格式 (code,order=word)")
+        print("  wr: 微软格式 (二进制 .dat 文件)")
+        print("  rime: Rime格式 (word\\tcode\\tweight)")
+        print("  dd: 多多格式 (word\\tcode 或 word\\tcode\\torder)")
+        print("  csv: CSV格式 (pinyin,index,text，与PinyinPhrase结构一致)")
         return
     
     # 如果提供了命令行参数，使用命令行模式

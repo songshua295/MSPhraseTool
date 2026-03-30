@@ -22,9 +22,7 @@ def cmd_export(args: argparse.Namespace) -> int:
     
     # 如果没有指定输出文件，使用默认文件名
     if not args.output:
-        from datetime import datetime
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        args.output = f'微软拼音短语_{timestamp}.txt'
+        args.output = '自定义短语.csv'
     
     service = PinyinLexService(LexFileReader())
     service.export(lex_path, args.output)
@@ -116,7 +114,7 @@ def cmd_convert(args: argparse.Namespace) -> int:
     
     # 获取转换脚本路径
     script_dir = Path(__file__).parent.parent / "tool"
-    convert_script = script_dir / "自定义短语类型转换.py"
+    convert_script = script_dir / "phrase_converter.py"
     
     if not convert_script.exists():
         print(f"错误：转换脚本不存在：{convert_script}")
@@ -153,7 +151,7 @@ def cmd_delete(args: argparse.Namespace) -> int:
     
     # 获取删除脚本路径
     script_dir = Path(__file__).parent.parent / "tool"
-    delete_script = script_dir / "删除微软自定义短语.py"
+    delete_script = script_dir / "delete_microsoft_phrases.py"
     
     if not delete_script.exists():
         print(f"错误：删除脚本不存在：{delete_script}")
@@ -177,6 +175,31 @@ def cmd_delete(args: argparse.Namespace) -> int:
         return 1
 
 
+def cmd_upload(args: argparse.Namespace) -> int:
+    """上传文件到 S3 命令"""
+    import subprocess
+    from pathlib import Path
+    
+    # 获取上传脚本路径
+    script_dir = Path(__file__).parent.parent / "tool"
+    upload_script = script_dir / "upload_to_s3.py"
+    
+    if not upload_script.exists():
+        print(f"错误：上传脚本不存在：{upload_script}")
+        return 1
+    
+    # 构建命令行参数
+    cmd = [sys.executable, str(upload_script)]
+    
+    # 执行上传脚本
+    try:
+        result = subprocess.run(cmd)
+        return result.returncode
+    except Exception as e:
+        print(f"执行上传脚本时出错：{e}")
+        return 1
+
+
 def cmd_edit(args: argparse.Namespace) -> int:
     """交互式修改单个短语命令"""
     lex_path = args.lex if args.lex else get_user_lex_path()
@@ -185,7 +208,7 @@ def cmd_edit(args: argparse.Namespace) -> int:
     print("=== 交互式短语修改 ===")
     print(f"当前 .lex 文件：{lex_path}")
     
-    # 步骤1：输入拼音
+    # 步骤 1：输入拼音
     while True:
         pinyin = input("请输入拼音（或输入 'quit' 退出）: ").strip()
         if pinyin.lower() == 'quit':
@@ -194,7 +217,7 @@ def cmd_edit(args: argparse.Namespace) -> int:
             print("拼音不能为空，请重新输入")
             continue
         if not service._validate_pinyin(pinyin):
-            print("拼音格式不正确，只能包含字母，最多32个字符")
+            print("拼音格式不正确，只能包含字母，最多 32 个字符")
             continue
         break
     
@@ -291,10 +314,10 @@ def main(args: Optional[list] = None) -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 可用命令:
-  export    导出系统当前自定义短语到 TXT 文件
+  export    导出系统当前自定义短语到 CSV 文件
     用法: main export [output] [--lex LEX]
     参数: 
-      output    输出文件路径 (TXT)，不指定时使用默认文件名
+      output    输出文件路径 (CSV)，不指定时默认为"自定义短语.csv"
       --lex     可选：指定 .lex 文件路径
 
   import    从 TXT 导入短语到 .lex
@@ -317,10 +340,10 @@ def main(args: Optional[list] = None) -> int:
     参数:
       --verbose   显示详细信息
 
-  convert   短语类型转换（百度/搜狗/微软/Rime/多多互转）
-    用法: main convert --format N --input FILE [--output DIR] [--list-formats]
+  convert   短语类型转换（百度/搜狗/微软/Rime/多多/CSV互转）
+    用法: main convert --format FORMAT --input FILE [--output DIR] [--list-formats]
     参数:
-      --format, -f    源文件格式 (1:百度，2:搜狗，3:微软，4:Rime, 5:多多)
+      --format, -f    源文件格式 (bd:百度，sg:搜狗，wr:微软，rime:Rime, dd:多多, csv:CSV)
       --input, -i     源文件路径
       --output, -o    输出文件夹路径 (默认：out)
       --list-formats, -l  列出支持的格式
@@ -332,19 +355,24 @@ def main(args: Optional[list] = None) -> int:
       --dry-run, -n   只显示将要删除的文件，不实际删除
 
   edit      交互式修改单个短语
-    用法: main edit [--lex LEX]
+    用法：main edit [--lex LEX]
     参数:
       --lex       可选：指定 .lex 文件路径
-    说明: 交互式修改，会提示输入拼音、索引和文本
+    说明：交互式修改，会提示输入拼音、索引和文本
+
+  upload    上传文件到 S3 存储
+    用法：main upload
+    说明：根据 .env 配置上传 lex 文件和其他文件到 S3 存储，显示 URL 列表和安装命令
 
 示例:
   main export phrases.txt
   main import phrases.txt
   main list --filter hx
   main debug --verbose
-  main convert --format 1 --input baidu.txt
+  main convert --format bd --input baidu.txt
   main delete --dry-run
   main edit
+  main upload
   
 使用 "main <命令> --help" 查看命令的详细帮助信息
 """
@@ -353,8 +381,8 @@ def main(args: Optional[list] = None) -> int:
     subparsers = parser.add_subparsers(dest='command', help='可用命令')
 
     # export 命令
-    export_parser = subparsers.add_parser('export', help='导出系统当前自定义短语到 TXT 文件')
-    export_parser.add_argument('output', nargs='?', help='输出文件路径 (TXT)，不指定时使用默认文件名')
+    export_parser = subparsers.add_parser('export', help='导出系统当前自定义短语到 CSV 文件')
+    export_parser.add_argument('output', nargs='?', help='输出文件路径 (CSV)，不指定时默认为"自定义短语.csv"')
     export_parser.add_argument('--lex', help='可选：指定 .lex 文件路径')
     export_parser.set_defaults(func=cmd_export)
 
@@ -380,8 +408,8 @@ def main(args: Optional[list] = None) -> int:
 
     # convert 命令
     convert_parser = subparsers.add_parser('convert', help='短语类型转换（百度/搜狗/微软/Rime/多多互转）')
-    convert_parser.add_argument('--format', '-f', type=int, choices=[1, 2, 3, 4, 5], 
-                                help='源文件格式 (1:百度，2:搜狗，3:微软，4:Rime, 5:多多)')
+    convert_parser.add_argument('--format', '-f', type=str, choices=['bd', 'sg', 'wr', 'rime', 'dd', 'csv'], 
+                                help='源文件格式 (bd:百度，sg:搜狗，wr:微软，rime:Rime, dd:多多, csv:CSV)')
     convert_parser.add_argument('--input', '-i', type=str, help='源文件路径')
     convert_parser.add_argument('--output', '-o', type=str, default='out', help='输出文件夹路径 (默认：out)')
     convert_parser.add_argument('--list-formats', '-l', action='store_true', help='列出支持的格式')
@@ -397,6 +425,10 @@ def main(args: Optional[list] = None) -> int:
     edit_parser = subparsers.add_parser('edit', help='交互式修改单个短语')
     edit_parser.add_argument('--lex', help='可选：指定 .lex 文件路径')
     edit_parser.set_defaults(func=cmd_edit)
+
+    # upload 命令
+    upload_parser = subparsers.add_parser('upload', help='上传文件到 S3 存储')
+    upload_parser.set_defaults(func=cmd_upload)
 
     parsed_args = parser.parse_args(args)
 

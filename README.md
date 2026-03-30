@@ -22,19 +22,22 @@
 
 ```bash
 # 查看帮助
-python -m pinyin_lex_tool.cli --help
+python main.py -h
+
+# 针对某个模块的帮助
+python main.py --help
 
 # 导出现有短语（默认保存为"自定义短语.csv"）
-python -m pinyin_lex_tool.cli export
+python main.py export
 
 # 导入短语文件（CSV 格式）
-python -m pinyin_lex_tool.cli import 自定义短语.csv
+python main.py import 自定义短语.csv
 
 # 查看所有现有短语
-python -m pinyin_lex_tool.cli list
+python main.py list
 
 # 转换格式（如百度转微软）
-python -m pinyin_lex_tool.cli convert --format bd --input 百度短语.txt
+python main.py convert --format bd --input 百度短语.txt
 ```
 
 ## 短语文件格式
@@ -74,30 +77,30 @@ convert 命令支持以下输入格式：
 **首次使用：**
 ```bash
 # 1. 导出当前系统短语（备份）
-python -m pinyin_lex_tool.cli export
+python main.py export
 
 # 2. 编辑导出的 CSV 文件，添加新短语
 # 3. 导入修改后的短语
-python -m pinyin_lex_tool.cli import 自定义短语.csv --verbose
+python main.py import 自定义短语.csv --verbose
 ```
 
 **从其他输入法迁移：**
 ```bash
 # 1. 转换格式（如从百度输入法）
-python -m pinyin_lex_tool.cli convert --format bd --input 百度短语.txt
+python main.py convert --format bd --input 百度短语.txt
 
 # 2. 查看转换结果
-python -m pinyin_lex_tool.cli list
+python main.py list
 
 # 3. 导入到系统
-python -m pinyin_lex_tool.cli import out/百度短语.csv
+python main.py import out/百度短语.csv
 ```
 
 **云端同步：**
 ```bash
 # 1. 配置 .env 文件（S3 信息）
 # 2. 上传当前短语
-python -m pinyin_lex_tool.cli upload
+python main.py upload
 
 # 3. 在新设备上下载并导入
 ```
@@ -108,13 +111,13 @@ python -m pinyin_lex_tool.cli upload
 
 ```bash
 # 基本用法（导出到默认文件"自定义短语.csv"）
-python -m pinyin_lex_tool.cli export
+python main.py export
 
 # 导出到指定文件
-python -m pinyin_lex_tool.cli export 我的备份.csv
+python main.py export 我的备份.csv
 
 # 指定词库文件路径（一般用不到）
-python -m pinyin_lex_tool.cli export --lex "C:\词库路径\ChsPinyinEUDPv1.lex"
+python main.py export --lex "C:\词库路径\ChsPinyinEUDPv1.lex"
 ```
 
 ### 2. import - 导入短语
@@ -123,19 +126,19 @@ python -m pinyin_lex_tool.cli export --lex "C:\词库路径\ChsPinyinEUDPv1.lex"
 
 ```bash
 # 基本导入（自动备份原文件）
-python -m pinyin_lex_tool.cli import 短语文件.csv
+python main.py import 短语文件.csv
 
 # 查看详细信息，看看导入了多少条
-python -m pinyin_lex_tool.cli import 短语文件.csv --verbose
+python main.py import 短语文件.csv --verbose
 
 # 只检查不实际导入（测试用）
-python -m pinyin_lex_tool.cli import 短语文件.csv --dry-run
+python main.py import 短语文件.csv --dry-run
 
 # 不备份直接导入（谨慎使用）
-python -m pinyin_lex_tool.cli import 短语文件.csv --no-backup
+python main.py import 短语文件.csv --no-backup
 
 # 指定词库文件
-python -m pinyin_lex_tool.cli import 短语文件.csv --lex "自定义路径.lex"
+python main.py import 短语文件.csv --lex "自定义路径.lex"
 ```
 
 **输入文件格式：**
@@ -149,13 +152,13 @@ python -m pinyin_lex_tool.cli import 短语文件.csv --lex "自定义路径.lex
 
 ```bash
 # 查看所有短语
-python -m pinyin_lex_tool.cli list
+python main.py list
 
 # 只看某个拼音开头的短语
-python -m pinyin_lex_tool.cli list --filter clc
+python main.py list --filter clc
 
 # 指定词库文件
-python -m pinyin_lex_tool.cli list --lex "自定义路径.lex"
+python main.py list --lex "自定义路径.lex"
 ```
 
 ### 4. convert - 格式转换
@@ -164,19 +167,19 @@ python -m pinyin_lex_tool.cli list --lex "自定义路径.lex"
 
 ```bash
 # 查看支持的所有格式
-python -m pinyin_lex_tool.cli convert --list-formats
+python main.py convert --list-formats
 
 # 百度格式转微软格式
-python -m pinyin_lex_tool.cli convert --format bd --input 百度短语.txt
+python main.py convert --format bd --input 百度短语.txt
 
 # 搜狗格式转微软格式，指定输出文件夹
-python -m pinyin_lex_tool.cli convert --format sg --input 搜狗短语.txt --output 我的转换
+python main.py convert --format sg --input 搜狗短语.txt --output 我的转换
 
 # CSV 格式转微软格式
-python -m pinyin_lex_tool.cli convert --format csv --input 我的短语.csv
+python main.py convert --format csv --input 我的短语.csv
 
 # 微软格式转 CSV（导出用）
-python -m pinyin_lex_tool.cli convert --format wr --input ChsPinyinEUDPv1.lex
+python main.py convert --format wr --input ChsPinyinEUDPv1.lex
 ```
 
 **支持的格式：**
@@ -198,10 +201,10 @@ python -m pinyin_lex_tool.cli convert --format wr --input ChsPinyinEUDPv1.lex
 
 ```bash
 # 基本调试信息
-python -m pinyin_lex_tool.cli debug
+python main.py debug
 
 # 详细调试信息
-python -m pinyin_lex_tool.cli debug --verbose
+python main.py debug --verbose
 ```
 
 ### 6. delete - 删除短语
@@ -210,13 +213,13 @@ python -m pinyin_lex_tool.cli debug --verbose
 
 ```bash
 # 查看将要删除什么（安全检查）
-python -m pinyin_lex_tool.cli delete --dry-run
+python main.py delete --dry-run
 
 # 确认删除（会提示确认）
-python -m pinyin_lex_tool.cli delete
+python main.py delete
 
 # 强制删除，不提示确认
-python -m pinyin_lex_tool.cli delete --force
+python main.py delete --force
 ```
 
 ### 7. edit - 交互式编辑
@@ -225,10 +228,10 @@ python -m pinyin_lex_tool.cli delete --force
 
 ```bash
 # 启动交互式编辑
-python -m pinyin_lex_tool.cli edit
+python main.py edit
 
 # 指定词库文件
-python -m pinyin_lex_tool.cli edit --lex "自定义路径.lex"
+python main.py edit --lex "自定义路径.lex"
 ```
 
 ### 8. upload - 上传到云端
@@ -237,7 +240,7 @@ python -m pinyin_lex_tool.cli edit --lex "自定义路径.lex"
 
 ```bash
 # 上传当前短语（自动转换并上传）
-python -m pinyin_lex_tool.cli upload
+python main.py upload
 ```
 
 **功能特点：**

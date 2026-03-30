@@ -64,5 +64,33 @@ MSPhraseTool/
 # 环境变量配置文件.env
 .env
 
+# 批处理文件（除了特定的工具包装器）
 *.bat
+MSPhraseTool.bat
+
+# PyInstaller 打包相关文件
+MSPhraseTool.spec
+*.spec
+*.log
+warn*.txt
+
+# 打包脚本和临时文件
+__pycache__/
+
+# 可执行文件（除了发布版本）
+*.exe
+dist/MSPhraseTool.exe
+
+# 临时文件和目录
+temp/
+tmp/
+*.tmp
+*.temp
+
+# 日志文件
+*.log
+logs/
+
+# 系统文件
+desktop.ini
 

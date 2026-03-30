@@ -40,6 +40,36 @@ python main.py list
 python main.py convert --format bd --input 百度短语.txt
 ```
 
+## 打包使用
+
+### 使用打包的EXE文件
+
+项目提供了打包成独立EXE文件的功能，无需安装Python环境即可使用。
+
+**快速开始：**
+```bash
+# 使用打包的EXE文件
+MSPhraseTool.exe --help
+MSPhraseTool.exe export
+MSPhraseTool.exe import 短语文件.csv
+```
+
+**详细使用指南：**
+- [CLI_USAGE.md](CLI_USAGE.md) - 完整的命令行工具使用说明
+- 包含安装方式、所有命令详解、常见问题等
+
+**打包方法：**
+项目包含 `build_exe.py` 脚本，可以一键打包：
+```bash
+# 安装PyInstaller
+pip install pyinstaller
+
+# 运行打包脚本
+python build_exe.py
+```
+
+打包完成后会在 `dist` 目录生成 `MSPhraseTool.exe` 文件。
+
 ## 短语文件格式
 
 ### CSV 格式（推荐）
@@ -369,6 +399,11 @@ MSPhraseTool/
 ## 许可证
 
 MIT License - 随便用
+
+## 相关文档
+
+- [CLI_USAGE.md](CLI_USAGE.md) - 完整的命令行工具使用说明
+- 包含打包EXE使用指南、所有命令详解、常见问题解答
 
 ---
 ## 项目致谢：

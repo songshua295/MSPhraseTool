@@ -270,5 +270,5 @@ MIT License - 见 LICENSE 文件
 
 
 项目参考：
-1. https://github.com/mchudie/MSPhraseTool
+1. https://github.com/mchudie/PinyinLexTool
 2. 

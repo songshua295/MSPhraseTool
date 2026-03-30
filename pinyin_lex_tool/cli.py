@@ -11,6 +11,13 @@ from .paths import get_user_lex_path
 def cmd_export(args: argparse.Namespace) -> int:
     """导出命令"""
     lex_path = args.lex if args.lex else get_user_lex_path()
+    
+    # 如果没有指定输出文件，使用默认文件名
+    if not args.output:
+        from datetime import datetime
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        args.output = f'微软拼音短语_{timestamp}.txt'
+    
     service = PinyinLexService(LexFileReader())
     service.export(lex_path, args.output)
     print(f"导出完成：{args.output}")
@@ -55,7 +62,7 @@ def cmd_debug(args: argparse.Namespace) -> int:
     from datetime import datetime
     from pathlib import Path
     
-    print("=== PinyinLexTool 调试信息 ===")
+    print("=== MSPhraseTool 调试信息 ===")
     print(f"版本：1.0.1")
     print(f"运行时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"操作系统：{sys.platform}")
@@ -94,18 +101,103 @@ def cmd_debug(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_convert(args: argparse.Namespace) -> int:
+    """短语类型转换命令"""
+    import subprocess
+    from pathlib import Path
+    
+    # 获取转换脚本路径
+    script_dir = Path(__file__).parent.parent / "tool"
+    convert_script = script_dir / "自定义短语类型转换.py"
+    
+    if not convert_script.exists():
+        print(f"错误：转换脚本不存在：{convert_script}")
+        return 1
+    
+    # 构建命令行参数
+    cmd = [sys.executable, str(convert_script)]
+    
+    if args.format:
+        cmd.extend(["--format", str(args.format)])
+    
+    if args.input:
+        cmd.extend(["--input", args.input])
+    
+    if args.output:
+        cmd.extend(["--output", args.output])
+    
+    if args.list_formats:
+        cmd.append("--list-formats")
+    
+    # 执行转换脚本
+    try:
+        result = subprocess.run(cmd)
+        return result.returncode
+    except Exception as e:
+        print(f"执行转换脚本时出错：{e}")
+        return 1
+
+
+def cmd_delete(args: argparse.Namespace) -> int:
+    """删除自定义短语命令"""
+    import subprocess
+    from pathlib import Path
+    
+    # 获取删除脚本路径
+    script_dir = Path(__file__).parent.parent / "tool"
+    delete_script = script_dir / "删除微软自定义短语.py"
+    
+    if not delete_script.exists():
+        print(f"错误：删除脚本不存在：{delete_script}")
+        return 1
+    
+    # 构建命令行参数
+    cmd = [sys.executable, str(delete_script)]
+    
+    if args.force:
+        cmd.append("--force")
+    
+    if args.dry_run:
+        cmd.append("--dry-run")
+    
+    # 执行删除脚本
+    try:
+        result = subprocess.run(cmd)
+        return result.returncode
+    except Exception as e:
+        print(f"执行删除脚本时出错：{e}")
+        return 1
+
+
 def main(args: Optional[list] = None) -> int:
     """主入口"""
     parser = argparse.ArgumentParser(
-        prog='PinyinLexTool',
-        description='微软拼音输入法自定义短语批量导入/导出工具'
+        prog='main',
+        description='微软拼音输入法自定义短语批量导入/导出工具&自定义短语格式转换工具',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+可用命令:
+  export    导出系统当前自定义短语到 TXT 文件
+  import    从 TXT 导入短语到 .lex
+  list      列出现有短语
+  debug     显示调试信息
+  convert   短语类型转换（百度/搜狗/微软/Rime/多多互转）
+  delete    删除微软拼音自定义短语
+
+示例:
+  main export phrases.txt
+  main import phrases.txt
+  main list
+  main convert --format 1 --input baidu.txt
+  main delete --dry-run
+"""
     )
     
     subparsers = parser.add_subparsers(dest='command', help='可用命令')
 
     # export 命令
     export_parser = subparsers.add_parser('export', help='导出系统当前自定义短语到 TXT 文件')
-    export_parser.add_argument('output', metavar='<output>', help='输出文件路径 (TXT)')
+    export_parser.add_argument('output', nargs='?', help='输出文件路径 (TXT)，不指定时使用默认文件名')
     export_parser.add_argument('--lex', help='可选：指定 .lex 文件路径')
     export_parser.set_defaults(func=cmd_export)
 
@@ -128,6 +220,21 @@ def main(args: Optional[list] = None) -> int:
     debug_parser = subparsers.add_parser('debug', help='显示调试信息')
     debug_parser.add_argument('--verbose', action='store_true', help='显示详细信息')
     debug_parser.set_defaults(func=cmd_debug)
+
+    # convert 命令
+    convert_parser = subparsers.add_parser('convert', help='短语类型转换（百度/搜狗/微软/Rime/多多互转）')
+    convert_parser.add_argument('--format', '-f', type=int, choices=[1, 2, 3, 4, 5], 
+                                help='源文件格式 (1:百度，2:搜狗，3:微软，4:Rime, 5:多多)')
+    convert_parser.add_argument('--input', '-i', type=str, help='源文件路径')
+    convert_parser.add_argument('--output', '-o', type=str, default='out', help='输出文件夹路径 (默认：out)')
+    convert_parser.add_argument('--list-formats', '-l', action='store_true', help='列出支持的格式')
+    convert_parser.set_defaults(func=cmd_convert)
+
+    # delete 命令
+    delete_parser = subparsers.add_parser('delete', help='删除微软拼音自定义短语')
+    delete_parser.add_argument('--force', '-f', action='store_true', help='强制删除，不提示确认')
+    delete_parser.add_argument('--dry-run', '-n', action='store_true', help='只显示将要删除的文件，不实际删除')
+    delete_parser.set_defaults(func=cmd_delete)
 
     parsed_args = parser.parse_args(args)
 

@@ -477,8 +477,60 @@ def save_ms(path: str, table: Table):
     print(f"已保存 → {path} (二进制格式)")
 
 
-# -------------------- 主入口 --------------------
-def main():
+# -------------------- 转换函数 --------------------
+def convert_phrases(src_format: int, src_path: str, out_dir: str = "out") -> bool:
+    """转换自定义短语格式
+    
+    Args:
+        src_format: 源格式 (1:百度, 2:搜狗, 3:微软, 4:Rime, 5:多多)
+        src_path: 源文件路径
+        out_dir: 输出文件夹路径
+        
+    Returns:
+        bool: 转换是否成功
+    """
+    if not os.path.isfile(src_path):
+        print(f"错误: 文件不存在: {src_path}")
+        return False
+    
+    # 加载源文件
+    if src_format == 1:
+        table = load_baidu(src_path)
+    elif src_format == 2:
+        table = load_sogou(src_path)
+    elif src_format == 3:
+        table = load_ms(src_path)
+    elif src_format == 4:
+        table = load_rime(src_path)
+    elif src_format == 5:
+        table = load_duoduo(src_path)
+    else:
+        print(f"错误: 不支持的源格式: {src_format}")
+        return False
+    
+    if not table:
+        print("警告: 未加载到任何短语数据")
+        return False
+    
+    # 创建输出文件夹（如果不存在）
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+        print(f"已创建输出文件夹: {out_dir}")
+    
+    # 保存到输出文件夹下
+    save_baidu(os.path.join(out_dir, "百度.ini.txt"), table)
+    save_sogou(os.path.join(out_dir, "PhraseEdit.txt"), table)
+    save_ms(os.path.join(out_dir, "微软.dat"), table)
+    save_rime(os.path.join(out_dir, "Rime自定义短语.txt"), table)
+    save_duoduo(os.path.join(out_dir, "多多自定义短语.txt"), table)
+    
+    print(f"转换完成！输出文件已保存到 {out_dir} 文件夹下")
+    return True
+
+
+# -------------------- 交互式主入口 --------------------
+def interactive_main():
+    """交互式运行模式"""
     print("============ 一键多格式互转（order=同 code 内顺序） ============")
     print("1. 百度 → 搜狗 + 微软 + Rime + 多多")
     print("2. 搜狗 → 百度 + 微软 + Rime + 多多")
@@ -486,41 +538,88 @@ def main():
     print("4. Rime → 百度 + 搜狗 + 微软 + 多多")
     print("5. 多多 → 百度 + 搜狗 + 微软 + Rime")
     print("============================================================")
-
+    
     src = int(input("请选择源格式 (默认 1): ") or 1)
     src_path = input("请输入源文件路径: ").strip(' "')
-
-    if not os.path.isfile(src_path):
-        print("文件不存在")
-        return
-
-    if src == 1:
-        table = load_baidu(src_path)
-    elif src == 2:
-        table = load_sogou(src_path)
-    elif src == 3:
-        table = load_ms(src_path)
-    elif src == 4:
-        table = load_rime(src_path)
-    elif src == 5:
-        table = load_duoduo(src_path)
-    else:
-        return
-
-    # 创建 out 文件夹（如果不存在）
-    out_dir = "out"
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-        print(f"已创建输出文件夹: {out_dir}")
     
-    # 保存到 out 文件夹下
-    save_baidu(os.path.join(out_dir, "百度.ini.txt"), table)
-    save_sogou(os.path.join(out_dir, "PhraseEdit.txt"), table)
-    save_ms(os.path.join(out_dir, "微软.dat"), table)
-    save_rime(os.path.join(out_dir, "Rime自定义短语.txt"), table)
-    save_duoduo(os.path.join(out_dir, "多多自定义短语.txt"), table)
+    success = convert_phrases(src, src_path)
+    if success:
+        print("全部转换完成！")
+    else:
+        print("转换失败！")
 
-    print(f"全部转换完成！输出文件已保存到 {out_dir} 文件夹下")
+
+# -------------------- 命令行主入口 --------------------
+def main():
+    """命令行入口点，支持命令行参数和交互式运行"""
+    import argparse
+    
+    parser = argparse.ArgumentParser(
+        description="自定义短语格式转换工具",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+使用示例:
+  # 交互式模式
+  python 自定义短语类型转换.py
+  
+  # 命令行模式
+  python 自定义短语类型转换.py --format 1 --input baidu.txt --output my_output
+  
+  # 支持的格式:
+  #   1: 百度格式
+  #   2: 搜狗格式  
+  #   3: 微软格式
+  #   4: Rime格式
+  #   5: 多多格式
+        """
+    )
+    
+    parser.add_argument(
+        "--format", "-f",
+        type=int,
+        choices=[1, 2, 3, 4, 5],
+        help="源文件格式 (1:百度, 2:搜狗, 3:微软, 4:Rime, 5:多多)"
+    )
+    
+    parser.add_argument(
+        "--input", "-i",
+        type=str,
+        help="源文件路径"
+    )
+    
+    parser.add_argument(
+        "--output", "-o",
+        type=str,
+        default="out",
+        help="输出文件夹路径 (默认: out)"
+    )
+    
+    parser.add_argument(
+        "--list-formats", "-l",
+        action="store_true",
+        help="列出支持的格式"
+    )
+    
+    args = parser.parse_args()
+    
+    # 列出支持的格式
+    if args.list_formats:
+        print("支持的格式:")
+        print("  1: 百度格式 (code=order,word)")
+        print("  2: 搜狗格式 (code,order=word)")
+        print("  3: 微软格式 (二进制 .dat 文件)")
+        print("  4: Rime格式 (word\\tcode\\tweight)")
+        print("  5: 多多格式 (word\\tcode 或 word\\tcode\\torder)")
+        return
+    
+    # 如果提供了命令行参数，使用命令行模式
+    if args.format is not None and args.input is not None:
+        success = convert_phrases(args.format, args.input, args.output)
+        if not success:
+            sys.exit(1)
+    else:
+        # 否则使用交互式模式
+        interactive_main()
 
 
 if __name__ == "__main__":

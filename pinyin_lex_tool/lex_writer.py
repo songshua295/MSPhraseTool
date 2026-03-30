@@ -211,13 +211,32 @@ class LexFileWriter:
             return data[start:]
         return data[start:start + length]
 
+    def _display_index_to_storage_index(self, display_index: int) -> int:
+        """将显示索引值（1-9）转换为存储索引值（1537-1545）
+        
+        Args:
+            display_index: 显示索引值（1-9）
+            
+        Returns:
+            存储索引值（1537-1545）
+        """
+        BASE_OFFSET = 1536  # 0x600
+        storage_index = BASE_OFFSET + display_index
+        
+        # 确保在有效范围内
+        if storage_index < 1537:
+            return 1537
+        if storage_index > 1545:
+            return 1545
+        return storage_index
+
     def _build_header(self, header_pinyin_len: int, index: int, tail: bytes) -> bytes:
         """构建记录头"""
         h = bytearray(16)
         struct.pack_into('<H', h, 0, 0x0010)
         struct.pack_into('<H', h, 2, 0x0010)
         struct.pack_into('<H', h, 4, header_pinyin_len)
-        struct.pack_into('<I', h, 6, index)
+        struct.pack_into('<I', h, 6, self._display_index_to_storage_index(index))
         struct.pack_into('<H', h, 10, 0x0006)
         struct.pack_into('<H', h, 12, 0x0000)
         h[14] = tail[0] if len(tail) > 0 else 0xA5

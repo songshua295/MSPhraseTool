@@ -5,7 +5,7 @@
 Windows 10/11 自带的微软拼音输入法（Microsoft Pinyin IME）没有提供官方的批量短语导入功能。
 当你需要一次性维护几十上百条自定义短语时，手工逐条录入既耗时又容易出错。
 
-PinyinLexTool 通过直接操作 `%APPDATA%\Microsoft\InputMethod\Chs\ChsPinyinEUDPv1.lex` 文件，
+MSPhraseTool 通过直接操作 `%APPDATA%\Microsoft\InputMethod\Chs\ChsPinyinEUDPv1.lex` 文件，
 实现自定义短语的批量导入、导出与备份。
 
 ## 🚀 功能特性
@@ -144,7 +144,7 @@ python -m main.py debug --verbose
 ### 项目结构
 
 ```
-PinyinLexTool/
+MSPhraseTool/
 ├── pinyin_lex_tool/
 │   ├── __init__.py          # 包初始化
 │   ├── cli.py              # 命令行界面
@@ -260,15 +260,15 @@ MIT License - 见 LICENSE 文件
 
 ## 🔗 相关链接
 
-- [原项目 GitHub](https://github.com/original-author/PinyinLexTool)
+- [原项目 GitHub](https://github.com/original-author/MSPhraseTool)
 - [Microsoft Pinyin IME](https://support.microsoft.com/pinyin)
 - [Python 中文社区](https://pychinese.com/)
 
 ---
 
-**PinyinLexTool Python Edition** - 让微软拼音输入法更智能高效！
+**MSPhraseTool Python Edition** - 让微软拼音输入法更智能高效！
 
 
 项目参考：
-1. https://github.com/mchudie/PinyinLexTool
+1. https://github.com/mchudie/MSPhraseTool
 2. 

@@ -63,3 +63,6 @@ MSPhraseTool/
 
 # 环境变量配置文件.env
 .env
+
+*.bat
+

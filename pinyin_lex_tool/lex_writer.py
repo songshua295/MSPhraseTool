@@ -59,8 +59,7 @@ class LexFileWriter:
         for pinyin, index, text in items:
             pinyin_bytes = pinyin.encode('utf-16-le')
             phrase_bytes = text.encode('utf-16-le')
-            storage_index = self._display_index_to_storage_index(index)
-            header = self._build_header(16 + len(pinyin_bytes) + len(self.PHRASE_SEP), storage_index, tail_bytes)
+            header = self._build_header(16 + len(pinyin_bytes) + len(self.PHRASE_SEP), index, tail_bytes)
             filtered.append((False, pinyin_bytes, header, phrase_bytes))
 
         filtered.sort(key=lambda x: x[1])
@@ -230,22 +229,3 @@ class LexFileWriter:
         with open(path, 'r+b') as f:
             f.seek(position)
             f.write(value)
-
-    def _display_index_to_storage_index(self, display_index: int) -> int:
-        """将显示索引值（1-9）转换为存储索引值
-        
-        Args:
-            display_index: 显示索引值（1-9）
-            
-        Returns:
-            存储索引值
-        """
-        BASE_OFFSET = 1536  # 0x600
-        
-        # 确保在有效范围内
-        if display_index < 1:
-            display_index = 1
-        if display_index > 9:
-            display_index = 9
-        
-        return BASE_OFFSET + display_index

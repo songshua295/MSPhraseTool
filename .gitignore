@@ -47,11 +47,16 @@ htmlcov/
 dmypy.json
 
 
-# 自定义短语
+# 自定义短语输出和生成的文件
 *.txt
 *.csv
 *.lex
+*.dat
 
 
 # 自定义工具 老代码
 pinyinlextool/
+
+
+# 添加库
+!requirements.txt

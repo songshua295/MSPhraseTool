@@ -1,4 +1,4 @@
-# PinyinLexTool (Python Edition)
+# MSPhraseTool (Python Edition)
 
 微软拼音输入法自定义短语批量导入/导出工具 - Python 重构版本
 
@@ -45,68 +45,68 @@ rq,1,%yyyy%-%MM%-%dd%
 
 ```bash
 # 导出当前所有短语
-python -m pinyin_lex_tool.cli export my_phrases.txt
+python -m main.py export my_phrases.txt
 
 # 导入短语（自动备份）
-python -m pinyin_lex_tool.cli import phrases.txt
+python -m main.py import phrases.txt
 
 # 查看所有短语
-python -m pinyin_lex_tool.cli list
+python -m main.py list
 
 # 调试信息
-python -m pinyin_lex_tool.cli debug --verbose
+python -m main.py debug --verbose
 ```
 
 ### 导入命令
 
 ```bash
 # 基本导入（自动备份）
-python -m pinyin_lex_tool.cli import phrases.txt
+python -m main.py import phrases.txt
 
 # 禁用备份
-python -m pinyin_lex_tool.cli import phrases.txt --no-backup
+python -m main.py import phrases.txt --no-backup
 
 # 干运行模式（仅校验，不写入）
-python -m pinyin_lex_tool.cli import phrases.txt --dry-run --verbose
+python -m main.py import phrases.txt --dry-run --verbose
 
 # 显示详细统计信息
-python -m pinyin_lex_tool.cli import phrases.txt --verbose
+python -m main.py import phrases.txt --verbose
 
 # 指定 .lex 文件路径
-python -m pinyin_lex_tool.cli import phrases.txt --lex "C:\\Users\\用户名\\AppData\\Roaming\\Microsoft\\InputMethod\\Chs\\ChsPinyinEUDPv1.lex"
+python -m main.py import phrases.txt --lex "C:\\Users\\用户名\\AppData\\Roaming\\Microsoft\\InputMethod\\Chs\\ChsPinyinEUDPv1.lex"
 ```
 
 ### 导出命令
 
 ```bash
 # 导出到指定文件
-python -m pinyin_lex_tool.cli export my_phrases.txt
+python -m main.py export my_phrases.txt
 
 # 指定 .lex 文件路径
-python -m pinyin_lex_tool.cli export my_phrases.txt --lex "C:\\Users\\用户名\\AppData\\Roaming\\Microsoft\\InputMethod\\Chs\\ChsPinyinEUDPv1.lex"
+python -m main.py export my_phrases.txt --lex "C:\\Users\\用户名\\AppData\\Roaming\\Microsoft\\InputMethod\\Chs\\ChsPinyinEUDPv1.lex"
 ```
 
 ### 列出命令
 
 ```bash
 # 列出所有短语
-python -m pinyin_lex_tool.cli list
+python -m main.py list
 
 # 按拼音过滤
-python -m pinyin_lex_tool.cli list --filter clc
+python -m main.py list --filter clc
 
 # 指定 .lex 文件路径
-python -m pinyin_lex_tool.cli list --lex "C:\\Users\\用户名\\AppData\\Roaming\\Microsoft\\InputMethod\\Chs\\ChsPinyinEUDPv1.lex"
+python -m main.py list --lex "C:\\Users\\用户名\\AppData\\Roaming\\Microsoft\\InputMethod\\Chs\\ChsPinyinEUDPv1.lex"
 ```
 
 ### 调试命令
 
 ```bash
 # 显示基本信息
-python -m pinyin_lex_tool.cli debug
+python -m main.py debug
 
 # 显示详细调试信息
-python -m pinyin_lex_tool.cli debug --verbose
+python -m main.py debug --verbose
 ```
 
 ## ⚠️ 注意事项
@@ -235,7 +235,7 @@ Python 3.11+ 环境即可运行，无需额外依赖：
 python --version
 
 # 运行工具
-python -m pinyin_lex_tool.cli --help
+python -m main.py --help
 ```
 
 ## 🤝 贡献指南

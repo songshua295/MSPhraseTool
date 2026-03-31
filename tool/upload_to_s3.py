@@ -14,15 +14,23 @@ try:
     from dotenv import load_dotenv
 except ImportError:
     print("❌ 缺少 python-dotenv 库，请运行: pip install python-dotenv")
-    exit(1)
+    sys.exit(1)
 
 # 加载 .env 文件
-env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+# 获取程序运行目录（支持打包后的 EXE）
+if getattr(sys, 'frozen', False):
+    # 打包后的 EXE 环境
+    base_dir = os.path.dirname(sys.executable)
+else:
+    # 开发环境
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+
+env_path = os.path.join(base_dir, '.env')
 if os.path.exists(env_path):
     load_dotenv(env_path)
 else:
-    print("❌ 未找到 .env 配置文件")
-    exit(1)
+    print(f"❌ 未找到 .env 配置文件: {env_path}")
+    sys.exit(1)
 
 # --- 从环境变量读取配置 ---
 CONFIG = {
@@ -42,7 +50,7 @@ required_configs = ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "S3_BUCKET_NAM
 missing_configs = [key for key in required_configs if not CONFIG[key]]
 if missing_configs:
     print(f"❌ 缺少配置: {', '.join(missing_configs)}")
-    exit(1)
+    sys.exit(1)
 
 # --- 配置区块结束 ---
 

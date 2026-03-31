@@ -1,1 +1,3 @@
 chardet
+boto3
+python-dotenv

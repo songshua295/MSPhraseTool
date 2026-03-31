@@ -111,93 +111,199 @@ def cmd_convert(args: argparse.Namespace) -> int:
     """短语类型转换命令"""
     import subprocess
     from pathlib import Path
+    import sys
     
-    # 获取转换脚本路径
-    script_dir = Path(__file__).parent.parent / "tool"
-    convert_script = script_dir / "phrase_converter.py"
-    
-    if not convert_script.exists():
-        print(f"错误：转换脚本不存在：{convert_script}")
-        return 1
-    
-    # 构建命令行参数
-    cmd = [sys.executable, str(convert_script)]
-    
-    if args.format:
-        cmd.extend(["--format", str(args.format)])
-    
-    if args.input:
-        cmd.extend(["--input", args.input])
-    
-    if args.output:
-        cmd.extend(["--output", args.output])
-    
-    if args.list_formats:
-        cmd.append("--list-formats")
-    
-    # 执行转换脚本
-    try:
-        result = subprocess.run(cmd)
-        return result.returncode
-    except Exception as e:
-        print(f"执行转换脚本时出错：{e}")
-        return 1
+    # 检查是否为打包环境
+    if getattr(sys, 'frozen', False):
+        # 打包环境：直接导入并调用函数
+        try:
+            import importlib.util
+            
+            # 获取转换脚本路径
+            script_dir = Path(__file__).parent.parent / "tool"
+            convert_script = script_dir / "phrase_converter.py"
+            
+            if not convert_script.exists():
+                print(f"错误：转换脚本不存在：{convert_script}")
+                return 1
+            
+            # 动态导入模块
+            spec = importlib.util.spec_from_file_location("phrase_converter", str(convert_script))
+            convert_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(convert_module)
+            
+            # 列出支持的格式
+            if args.list_formats:
+                print("支持的格式:")
+                print("  bd: 百度格式 (code=order,word)")
+                print("  sg: 搜狗格式 (code,order=word)")
+                print("  wr: 微软格式 (二进制 .dat 文件)")
+                print("  rime: Rime格式 (word\\tcode\\tweight)")
+                print("  dd: 多多格式 (word\\tcode 或 word\\tcode\\torder)")
+                print("  csv: CSV格式 (pinyin,index,text，与PinyinPhrase结构一致)")
+                return 0
+            
+            # 执行转换
+            if args.format and args.input:
+                success = convert_module.convert_phrases(args.format, args.input, args.output)
+                return 0 if success else 1
+            else:
+                print("错误：需要指定 --format 和 --input 参数")
+                return 1
+                
+        except Exception as e:
+            print(f"执行转换脚本时出错：{e}")
+            return 1
+    else:
+        # 开发环境：使用 subprocess 执行脚本
+        script_dir = Path(__file__).parent.parent / "tool"
+        convert_script = script_dir / "phrase_converter.py"
+        
+        if not convert_script.exists():
+            print(f"错误：转换脚本不存在：{convert_script}")
+            return 1
+        
+        # 构建命令行参数
+        cmd = [sys.executable, str(convert_script)]
+        
+        if args.format:
+            cmd.extend(["--format", str(args.format)])
+        
+        if args.input:
+            cmd.extend(["--input", args.input])
+        
+        if args.output:
+            cmd.extend(["--output", args.output])
+        
+        if args.list_formats:
+            cmd.append("--list-formats")
+        
+        # 执行转换脚本
+        try:
+            result = subprocess.run(cmd)
+            return result.returncode
+        except Exception as e:
+            print(f"执行转换脚本时出错：{e}")
+            return 1
 
 
 def cmd_delete(args: argparse.Namespace) -> int:
     """删除自定义短语命令"""
     import subprocess
     from pathlib import Path
+    import sys
     
-    # 获取删除脚本路径
-    script_dir = Path(__file__).parent.parent / "tool"
-    delete_script = script_dir / "delete_microsoft_phrases.py"
-    
-    if not delete_script.exists():
-        print(f"错误：删除脚本不存在：{delete_script}")
-        return 1
-    
-    # 构建命令行参数
-    cmd = [sys.executable, str(delete_script)]
-    
-    if args.force:
-        cmd.append("--force")
-    
-    if args.dry_run:
-        cmd.append("--dry-run")
-    
-    # 执行删除脚本
-    try:
-        result = subprocess.run(cmd)
-        return result.returncode
-    except Exception as e:
-        print(f"执行删除脚本时出错：{e}")
-        return 1
+    # 检查是否为打包环境
+    if getattr(sys, 'frozen', False):
+        # 打包环境：直接导入并调用函数
+        try:
+            import importlib.util
+            
+            # 获取删除脚本路径
+            script_dir = Path(__file__).parent.parent / "tool"
+            delete_script = script_dir / "delete_microsoft_phrases.py"
+            
+            if not delete_script.exists():
+                print(f"错误：删除脚本不存在：{delete_script}")
+                return 1
+            
+            # 动态导入模块
+            spec = importlib.util.spec_from_file_location("delete_microsoft_phrases", str(delete_script))
+            delete_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(delete_module)
+            
+            # 调用删除函数
+            if args.dry_run:
+                lex_path = delete_module.get_lex_path()
+                if lex_path:
+                    print(f"[Dry Run] 将要删除：{lex_path}")
+                return 0
+            else:
+                success = delete_module.delete_lex_file(force=args.force)
+                return 0 if success else 1
+                
+        except Exception as e:
+            print(f"执行删除脚本时出错：{e}")
+            return 1
+    else:
+        # 开发环境：使用 subprocess 执行脚本
+        script_dir = Path(__file__).parent.parent / "tool"
+        delete_script = script_dir / "delete_microsoft_phrases.py"
+        
+        if not delete_script.exists():
+            print(f"错误：删除脚本不存在：{delete_script}")
+            return 1
+        
+        # 构建命令行参数
+        cmd = [sys.executable, str(delete_script)]
+        
+        if args.force:
+            cmd.append("--force")
+        
+        if args.dry_run:
+            cmd.append("--dry-run")
+        
+        # 执行删除脚本
+        try:
+            result = subprocess.run(cmd)
+            return result.returncode
+        except Exception as e:
+            print(f"执行删除脚本时出错：{e}")
+            return 1
 
 
 def cmd_upload(args: argparse.Namespace) -> int:
     """上传文件到 S3 命令"""
     import subprocess
     from pathlib import Path
+    import sys
     
-    # 获取上传脚本路径
-    script_dir = Path(__file__).parent.parent / "tool"
-    upload_script = script_dir / "upload_to_s3.py"
-    
-    if not upload_script.exists():
-        print(f"错误：上传脚本不存在：{upload_script}")
-        return 1
-    
-    # 构建命令行参数
-    cmd = [sys.executable, str(upload_script)]
-    
-    # 执行上传脚本
-    try:
-        result = subprocess.run(cmd)
-        return result.returncode
-    except Exception as e:
-        print(f"执行上传脚本时出错：{e}")
-        return 1
+    # 检查是否为打包环境
+    if getattr(sys, 'frozen', False):
+        # 打包环境：直接导入并调用函数
+        try:
+            import importlib.util
+            
+            # 获取上传脚本路径
+            script_dir = Path(__file__).parent.parent / "tool"
+            upload_script = script_dir / "upload_to_s3.py"
+            
+            if not upload_script.exists():
+                print(f"错误：上传脚本不存在：{upload_script}")
+                return 1
+            
+            # 动态导入模块
+            spec = importlib.util.spec_from_file_location("upload_to_s3", str(upload_script))
+            upload_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(upload_module)
+            
+            # 调用上传函数
+            print(f"📋 存储桶: {upload_module.CONFIG['S3_BUCKET_NAME']} 目录: {upload_module.CONFIG['S3_DIRECTORY']}")
+            upload_module.upload_files_to_s3(upload_module.CONFIG)
+            return 0
+            
+        except Exception as e:
+            print(f"执行上传脚本时出错：{e}")
+            return 1
+    else:
+        # 开发环境：使用 subprocess 执行脚本
+        script_dir = Path(__file__).parent.parent / "tool"
+        upload_script = script_dir / "upload_to_s3.py"
+        
+        if not upload_script.exists():
+            print(f"错误：上传脚本不存在：{upload_script}")
+            return 1
+        
+        # 构建命令行参数
+        cmd = [sys.executable, str(upload_script)]
+        
+        # 执行上传脚本
+        try:
+            result = subprocess.run(cmd)
+            return result.returncode
+        except Exception as e:
+            print(f"执行上传脚本时出错：{e}")
+            return 1
 
 
 def cmd_edit(args: argparse.Namespace) -> int:

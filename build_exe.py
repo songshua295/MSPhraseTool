@@ -66,8 +66,12 @@ a = Analysis(
     hiddenimports=[
         'chardet',
         'boto3',
+        'boto3.resources',
+        'boto3.session',
         'botocore',
-        'python_dotenv',
+        'botocore.exceptions',
+        'botocore.client',
+        'dotenv',
         'pinyin_lex_tool',
         'pinyin_lex_tool.cli',
         'pinyin_lex_tool.service',
@@ -169,8 +173,13 @@ def build_exe(arch='auto'):
         '--add-data=pinyin_lex_tool;pinyin_lex_tool',  # 包含pinyin_lex_tool目录
         '--hidden-import=chardet',
         '--hidden-import=boto3',
+        '--hidden-import=boto3.resources',
+        '--hidden-import=boto3.session',
         '--hidden-import=botocore',
-        '--hidden-import=python_dotenv',
+        '--hidden-import=botocore.exceptions',
+        '--hidden-import=botocore.client',
+        '--hidden-import=dotenv',
+        '--hidden-import=glob',
         '--hidden-import=pinyin_lex_tool',
         '--hidden-import=pinyin_lex_tool.cli',
         '--hidden-import=pinyin_lex_tool.service',
@@ -331,6 +340,11 @@ def main():
     print("  1. 32位EXE需要在32位系统或兼容模式下运行")
     print("  2. 64位EXE只能在64位系统上运行")
     print("  3. 要构建32位版本，需要使用32位Python解释器")
+    
+    print("\n配置文件说明:")
+    print("  .env 文件不会被打包进 EXE，需要在 EXE 同目录下手动创建")
+    print("  请参考 .env.案例 文件创建你的 .env 配置文件")
+    print("  .env 文件位置: 与 EXE 文件在同一目录下")
     
     return 0
 

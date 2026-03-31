@@ -177,6 +177,7 @@ class PinyinLexService:
             'moved': False,
             'updated': False,
             'inserted': False,
+            'deleted': False,
             'old_index': None
         }
         
@@ -216,6 +217,23 @@ class PinyinLexService:
             writer.upsert(lex_path, items_to_add)
         
         return result
+
+    def delete_single_phrase(self, lex_path: str, pinyin: str, index: int, text: str) -> bool:
+        """删除单个短语
+
+        Args:
+            lex_path: .lex 文件路径
+            pinyin: 拼音
+            index: 索引 (1-9)
+            text: 文本
+
+        Returns:
+            是否删除成功
+        """
+        items_to_remove = [(pinyin, index, text)]
+        writer = LexFileWriter()
+        removed = writer.remove_phrases(lex_path, items_to_remove)
+        return removed > 0
 
     def _validate_pinyin(self, pinyin: str) -> bool:
         """校验拼音：最多 32 个小写字母"""

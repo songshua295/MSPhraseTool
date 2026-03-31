@@ -264,12 +264,33 @@ def cmd_edit(args: argparse.Namespace) -> int:
     
     # 步骤4：输入文本
     while True:
-        text = input(f"请输入要{action}的文本（或输入 'quit' 退出）: ").strip()
+        text = input(f"请输入要{action}的文本（或输入 'quit' 退出，输入空格或 'esc' 删除）: ").strip()
         if text.lower() == 'quit':
             return 0
-        if not text:
-            print("文本不能为空")
-            continue
+        
+        # 检查是否要删除
+        if not text or text.lower() == 'esc':
+            if action == "修改":
+                # 确认删除
+                confirm = input(f"确定要删除索引 {index} 的短语 '{existing_at_index.text}' 吗？(y/N): ").strip().lower()
+                if confirm == 'y':
+                    try:
+                        deleted = service.delete_single_phrase(lex_path, pinyin.lower(), index, existing_at_index.text)
+                        if deleted:
+                            print(f"✓ 已删除索引 {index} 的短语")
+                        else:
+                            print("删除失败")
+                        return 0
+                    except Exception as e:
+                        print(f"错误：{e}")
+                        return 1
+                else:
+                    print("操作已取消")
+                    return 0
+            else:
+                print("文本不能为空")
+                continue
+        
         if len(text) > 64:
             print("文本长度不能超过64个字符")
             continue

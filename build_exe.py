@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 MSPhraseTool 打包脚本
 用于将项目打包成独立的可执行文件
@@ -81,6 +81,11 @@ a = Analysis(
         'pinyin_lex_tool.lex_writer',
         'pinyin_lex_tool.models',
         'pinyin_lex_tool.paths',
+        'pinyin_lex_tool.gui',
+        'tkinter',
+        'tkinter.ttk',
+        'tkinter.messagebox',
+        'tkinter.filedialog',
     ],
     hookspath=[],
     hooksconfig={},
@@ -182,6 +187,11 @@ def build_exe(arch='auto'):
         '--hidden-import=pinyin_lex_tool.lex_writer',
         '--hidden-import=pinyin_lex_tool.models',
         '--hidden-import=pinyin_lex_tool.paths',
+        '--hidden-import=pinyin_lex_tool.gui',
+        '--hidden-import=tkinter',
+        '--hidden-import=tkinter.ttk',
+        '--hidden-import=tkinter.messagebox',
+        '--hidden-import=tkinter.filedialog',
         '--clean',  # 清理临时文件
     ]
     

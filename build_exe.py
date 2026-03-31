@@ -62,6 +62,8 @@ a = Analysis(
         # 包含README和LICENSE
         ('README.md', '.'),
         ('LICENSE', '.'),
+        # 包含配置文件模板
+        ('.env.案例', '.'),
     ],
     hiddenimports=[
         'chardet',

@@ -8,6 +8,12 @@ import subprocess
 import sys
 from botocore.exceptions import ClientError
 
+# 设置控制台编码为 UTF-8，支持 emoji 显示
+if sys.platform == 'win32':
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+
 # 安装需要的库：pip install boto3 python-dotenv
 
 try:
@@ -29,8 +35,34 @@ env_path = os.path.join(base_dir, '.env')
 if os.path.exists(env_path):
     load_dotenv(env_path)
 else:
-    print(f"❌ 未找到 .env 配置文件: {env_path}")
-    sys.exit(1)
+    # 自动创建 .env 模板文件
+    env_template_content = """# S3 上传配置文件
+# 请将以下占位符替换为你的实际配置信息
+
+# AWS S3 兼容存储凭证
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+
+# S3 存储桶配置
+S3_BUCKET_NAME=s #存储桶名字
+S3_DIRECTORY=/ # 上传路径，默认为根目录
+AWS_REGION=cn-east-1 #区域
+S3_ENDPOINT_URL=https://
+
+# 上传配置
+# 是否同步微软拼音系统词库（lex 文件）true=同步，false=跳过
+INCLUDE_LEX_FILE=true
+
+# 同步文件配置 (支持通配符和具体路径，多个用逗号分隔)
+# 示例: *.txt,*.csv,config/*.json,docs/README.md,specific_file.txt
+SYNC_FILES=*.txt,*.csv,*.ini,out/*
+"""
+    
+    with open(env_path, 'w', encoding='utf-8') as f:
+        f.write(env_template_content)
+    print(f"✅ 已自动创建 .env 配置文件: {env_path}")
+    print(f"📝 请编辑 .env 文件，填写你的配置信息")
+    load_dotenv(env_path)
 
 # --- 从环境变量读取配置 ---
 CONFIG = {

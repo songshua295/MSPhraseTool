@@ -152,16 +152,9 @@ def build_exe(arch='auto'):
     else:
         target_arch = arch
     
-    # 获取版本信息
-    try:
-        from pinyin_lex_tool import __version__ as version
-        print(f"项目版本: {version}")
-    except ImportError:
-        version = "unknown"
-        print("警告: 无法获取项目版本信息，使用 'unknown'")
     
     # 生成包含架构和版本的文件名
-    exe_name = f"MSPhraseTool_v{version}_{target_arch}"
+    exe_name = f"MSPhraseTool_{target_arch}"
     print(f"目标架构: {target_arch}")
     print(f"EXE文件名: {exe_name}")
     
@@ -237,13 +230,7 @@ def create_bat_wrapper(arch='auto', exe_name=None):
         target_arch = arch
     
     # 如果没有提供exe_name，则使用默认名称
-    if exe_name is None:
-        # 尝试获取版本信息
-        try:
-            from pinyin_lex_tool import __version__ as version
-        except ImportError:
-            version = "unknown"
-        exe_name = f"MSPhraseTool_v{version}_{target_arch}"
+    exe_name = f"MSPhraseTool_{target_arch}"
     
     exe_path = f'dist_{target_arch}/{exe_name}.exe'
     

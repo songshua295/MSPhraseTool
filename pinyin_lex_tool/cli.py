@@ -137,7 +137,8 @@ def cmd_convert(args: argparse.Namespace) -> int:
                 print("支持的格式:")
                 print("  bd: 百度格式 (code=order,word)")
                 print("  sg: 搜狗格式 (code,order=word)")
-                print("  wr: 微软格式 (二进制 .dat 文件)")
+                print("  wr: 微软 .dat 格式 (二进制 .dat 文件)")
+                print("  lex: 微软 .lex 格式 (二进制 .lex 文件)")
                 print("  rime: Rime格式 (word\\tcode\\tweight)")
                 print("  dd: 多多格式 (word\\tcode 或 word\\tcode\\torder)")
                 print("  csv: CSV格式 (pinyin,index,text，与PinyinPhrase结构一致)")
@@ -470,7 +471,7 @@ def main(args: Optional[list] = None) -> int:
   convert   短语类型转换（百度/搜狗/微软/Rime/多多/CSV互转）
     用法: main convert --format FORMAT --input FILE [--output DIR] [--list-formats]
     参数:
-      --format, -f    源文件格式 (bd:百度，sg:搜狗，wr:微软，rime:Rime, dd:多多, csv:CSV)
+      --format, -f    源文件格式 (bd:百度，sg:搜狗，wr:微软.dat，lex:微软.lex，rime:Rime, dd:多多, csv:CSV)
       --input, -i     源文件路径
       --output, -o    输出文件夹路径 (默认：out)
       --list-formats, -l  列出支持的格式
@@ -534,9 +535,9 @@ def main(args: Optional[list] = None) -> int:
     debug_parser.set_defaults(func=cmd_debug)
 
     # convert 命令
-    convert_parser = subparsers.add_parser('convert', help='短语类型转换（百度/搜狗/微软/Rime/多多互转）')
-    convert_parser.add_argument('--format', '-f', type=str, choices=['bd', 'sg', 'wr', 'rime', 'dd', 'csv'], 
-                                help='源文件格式 (bd:百度，sg:搜狗，wr:微软，rime:Rime, dd:多多, csv:CSV)')
+    convert_parser = subparsers.add_parser('convert', help='短语类型转换（百度/搜狗/微软/Rime/多多/CSV互转）')
+    convert_parser.add_argument('--format', '-f', type=str, choices=['bd', 'sg', 'wr', 'lex', 'rime', 'dd', 'csv'], 
+                                help='源文件格式 (bd:百度，sg:搜狗，wr:微软.dat，lex:微软.lex，rime:Rime, dd:多多, csv:CSV)')
     convert_parser.add_argument('--input', '-i', type=str, help='源文件路径')
     convert_parser.add_argument('--output', '-o', type=str, default='out', help='输出文件夹路径 (默认：out)')
     convert_parser.add_argument('--list-formats', '-l', action='store_true', help='列出支持的格式')

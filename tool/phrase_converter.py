@@ -531,12 +531,174 @@ def save_ms(path: str, table: Table):
     print(f"已保存 → {path} (二进制格式)")
 
 
+# -------------------- 微软 lex --------------------
+def load_lex(path: str) -> Table:
+    """加载微软 lex 格式文件，二进制格式，内部使用 utf-16-le 编码"""
+    PHRASE_CNT_POS = 0x1C
+    PHRASE_LEN_FIRST_POS = 0x44
+    
+    with open(path, "rb") as f:
+        data = f.read()
+    
+    if len(data) < PHRASE_LEN_FIRST_POS:
+        return []
+    
+    phrase_count = struct.unpack('<I', data[PHRASE_CNT_POS:PHRASE_CNT_POS + 4])[0]
+    if phrase_count <= 0:
+        return []
+    
+    first_offset_pos = PHRASE_LEN_FIRST_POS
+    first_block_pos = first_offset_pos + 4 * (phrase_count - 1)
+    
+    result = []
+    last_pos = 0
+    
+    for i in range(phrase_count):
+        if i == phrase_count - 1:
+            block_pos = -1
+        else:
+            offset_pos = first_offset_pos + i * 4
+            block_pos = struct.unpack('<I', data[offset_pos:offset_pos + 4])[0]
+        
+        block_len = -1 if block_pos == -1 else (block_pos - last_pos)
+        if block_len < 0:
+            seg = data[first_block_pos + last_pos:]
+        else:
+            seg = data[first_block_pos + last_pos:first_block_pos + last_pos + block_len]
+        last_pos = block_pos
+        
+        if len(seg) < 16:
+            continue
+        
+        # 解析头部
+        header_len = struct.unpack('<I', seg[0:4])[0]
+        if header_len != 16:
+            continue
+        
+        body = seg[16:]
+        if not body:
+            continue
+        
+        # 按 00 00 分割
+        parts = []
+        current = bytearray()
+        for j in range(0, len(body), 2):
+            if j + 1 < len(body):
+                if body[j] == 0x00 and body[j+1] == 0x00:
+                    if len(current) >= 2:
+                        parts.append(bytes(current))
+                        current.clear()
+                else:
+                    current.append(body[j])
+                    current.append(body[j+1])
+        
+        if len(current) >= 2:
+            parts.append(bytes(current))
+        
+        if len(parts) < 2:
+            continue
+        
+        try:
+            pinyin = parts[0].decode('utf-16-le').strip()
+            phrase = parts[1].decode('utf-16-le').replace('\r\n', '\n').strip()
+        except:
+            continue
+        
+        storage_index = struct.unpack('<I', seg[8:12])[0]
+        BASE_OFFSET = 1536  # 0x600
+        display_index = storage_index - BASE_OFFSET
+        
+        # 确保在有效范围内
+        if display_index < 1:
+            display_index = 1
+        if display_index > 9:
+            display_index = 9
+        
+        if not pinyin or not phrase:
+            continue
+        
+        result.append(Entry(phrase, pinyin, display_index))
+    
+    result.sort(key=lambda x: (x.code, x.order))
+    return result
+
+
+def save_lex(path: str, table: Table):
+    """保存微软 lex 格式文件，二进制格式，内部使用 utf-16-le 编码"""
+    PHRASE_CNT_POS = 0x1C
+    PHRASE_LEN_FIRST_POS = 0x44
+    
+    # 构建记录
+    records = []
+    for e in table:
+        pinyin = e.code
+        index = e.order
+        text = e.word
+        
+        pinyin_bytes = pinyin.encode('utf-16-le')
+        phrase_bytes = text.encode('utf-16-le')
+        
+        # 构建头部
+        header = struct.pack('<I', 16)  # 头部长度
+        header += struct.pack('<H', 0x10)  # 未知
+        header += struct.pack('<H', 0x10)  # 未知
+        header += struct.pack('<I', 1536 + index)  # 存储索引 = 基础偏移 + 显示索引
+        header += bytes([0x00] * 4)  # 填充
+        
+        # 构建记录
+        record = header + pinyin_bytes + b'\x00\x00' + phrase_bytes + b'\x00\x00'
+        records.append((pinyin, index, record))
+    
+    # 按拼音排序
+    records.sort(key=lambda x: x[0])
+    
+    # 提取排序后的记录
+    sorted_records = [r[2] for r in records]
+    
+    # 计算偏移量
+    offsets = []
+    current_offset = 0
+    for record in sorted_records:
+        if len(offsets) < len(sorted_records) - 1:
+            offsets.append(current_offset)
+            current_offset += len(record)
+    
+    # 构建文件内容
+    # 头部
+    header = b'mschxudp' + b'\x02\x00\x60\x00\x01\x00\x00\x00'
+    header += struct.pack('<I', 0x40)  # 未知
+    header += struct.pack('<I', 0x40)  # 未知
+    header += struct.pack('<I', 0)  # 未知
+    header += struct.pack('<I', len(sorted_records))  # 短语数量
+    header += struct.pack('<I', 0)  # 未知
+    header += bytes(32)  # 填充
+    
+    # 偏移表
+    offset_table = b''
+    for offset in offsets:
+        offset_table += struct.pack('<I', offset)
+    
+    # 记录数据
+    record_data = b''
+    for record in sorted_records:
+        record_data += record
+    
+    # 组合所有部分
+    file_data = header + offset_table + record_data
+    
+    # 写入文件
+    with open(path, 'wb') as f:
+        f.write(file_data)
+    
+    print(f"已保存 → {path} (lex 格式)")
+
+
 # -------------------- 转换函数 --------------------
 def convert_phrases(src_format: str, src_path: str, out_dir: str = "out") -> bool:
     """转换自定义短语格式
 
     Args:
-        src_format: 源格式 (bd:百度, sg:搜狗, wr:微软, rime:Rime, dd:多多)
+        src_format: 源格式 (bd:百度, sg:搜狗, wr:微软, rime:Rime, dd:多多, csv:CSV, lex:微软lex)
         src_path: 源文件路径
         out_dir: 输出文件夹路径
 
@@ -554,6 +716,8 @@ def convert_phrases(src_format: str, src_path: str, out_dir: str = "out") -> boo
         table = load_sogou(src_path)
     elif src_format == "wr":
         table = load_ms(src_path)
+    elif src_format == "lex":
+        table = load_lex(src_path)
     elif src_format == "rime":
         table = load_rime(src_path)
     elif src_format == "dd":
@@ -562,7 +726,7 @@ def convert_phrases(src_format: str, src_path: str, out_dir: str = "out") -> boo
         table = load_csv(src_path)
     else:
         print(f"错误: 不支持的源格式: {src_format}")
-        print("支持的格式: bd(百度), sg(搜狗), wr(微软), rime(Rime), dd(多多), csv(CSV)")
+        print("支持的格式: bd(百度), sg(搜狗), wr(微软), lex(微软lex), rime(Rime), dd(多多), csv(CSV)")
         return False
 
     if not table:
@@ -578,6 +742,7 @@ def convert_phrases(src_format: str, src_path: str, out_dir: str = "out") -> boo
     save_baidu(os.path.join(out_dir, "百度.ini.txt"), table)
     save_sogou(os.path.join(out_dir, "PhraseEdit.txt"), table)
     save_ms(os.path.join(out_dir, "微软.dat"), table)
+    save_lex(os.path.join(out_dir, "微软.lex"), table)
     save_rime(os.path.join(out_dir, "Rime自定义短语.txt"), table)
     save_duoduo(os.path.join(out_dir, "多多自定义短语.txt"), table)
     save_csv(os.path.join(out_dir, "自定义短语.csv"), table)
@@ -590,18 +755,19 @@ def convert_phrases(src_format: str, src_path: str, out_dir: str = "out") -> boo
 def interactive_main():
     """交互式运行模式"""
     print("============ 一键多格式互转（order=同 code 内顺序） ============")
-    print("bd. 百度 → 搜狗 + 微软 + Rime + 多多 + CSV")
-    print("sg. 搜狗 → 百度 + 微软 + Rime + 多多 + CSV")
-    print("wr. 微软 → 百度 + 搜狗 + Rime + 多多 + CSV")
-    print("rime. Rime → 百度 + 搜狗 + 微软 + 多多 + CSV")
-    print("dd. 多多 → 百度 + 搜狗 + 微软 + Rime + CSV")
-    print("csv. CSV → 百度 + 搜狗 + 微软 + Rime + 多多")
-    print("============================================================")
+    print("bd. 百度 → 搜狗 + 微软 + 微软lex + Rime + 多多 + CSV")
+    print("sg. 搜狗 → 百度 + 微软 + 微软lex + Rime + 多多 + CSV")
+    print("wr. 微软 → 百度 + 搜狗 + 微软lex + Rime + 多多 + CSV")
+    print("lex. 微软lex → 百度 + 搜狗 + 微软 + Rime + 多多 + CSV")
+    print("rime. Rime → 百度 + 搜狗 + 微软 + 微软lex + 多多 + CSV")
+    print("dd. 多多 → 百度 + 搜狗 + 微软 + 微软lex + Rime + CSV")
+    print("csv. CSV → 百度 + 搜狗 + 微软 + 微软lex + Rime + 多多")
+    print("===========================================================")
 
     src = input("请选择源格式 (默认 bd): ").strip() or "bd"
 
     # 如果是微软格式，默认使用系统 lex 文件路径
-    if src == "wr":
+    if src == "wr" or src == "lex":
         import os
         default_path = os.path.join(os.getenv("APPDATA", ""), "Microsoft", "InputMethod", "Chs", "ChsPinyinEUDPv1.lex")
         src_path = input(f"请输入源文件路径 (默认：{default_path}): ").strip(' "')
@@ -645,8 +811,8 @@ def main():
     parser.add_argument(
         "--format", "-f",
         type=str,
-        choices=["bd", "sg", "wr", "rime", "dd", "csv"],
-        help="源文件格式 (bd:百度, sg:搜狗, wr:微软, rime:Rime, dd:多多, csv:CSV)"
+        choices=["bd", "sg", "wr", "lex", "rime", "dd", "csv"],
+        help="源文件格式 (bd:百度, sg:搜狗, wr:微软, lex:微软lex, rime:Rime, dd:多多, csv:CSV)"
     )
 
     parser.add_argument(
@@ -676,6 +842,7 @@ def main():
         print("  bd: 百度格式 (code=order,word)")
         print("  sg: 搜狗格式 (code,order=word)")
         print("  wr: 微软格式 (二进制 .dat 文件)")
+        print("  lex: 微软lex格式 (二进制 .lex 文件)")
         print("  rime: Rime格式 (word\\tcode\\tweight)")
         print("  dd: 多多格式 (word\\tcode 或 word\\tcode\\torder)")
         print("  csv: CSV格式 (pinyin,index,text，与PinyinPhrase结构一致)")

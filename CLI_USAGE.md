@@ -182,7 +182,8 @@ MSPhraseTool.exe convert --format wr --input ChsPinyinEUDPv1.lex
 **支持的格式：**
 - `bd`: 百度格式
 - `sg`: 搜狗格式  
-- `wr`: 微软格式
+- `wr`: 微软 .dat 格式
+- `lex`: 微软 .lex 格式
 - `rime`: Rime格式
 - `dd`: 多多格式
 - `csv`: CSV格式

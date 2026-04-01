@@ -215,7 +215,8 @@ python main.py convert --format wr --input ChsPinyinEUDPv1.lex
 **支持的格式：**
 - `bd` - 百度输入法（UTF-8 编码）
 - `sg` - 搜狗输入法（UTF-8 编码）
-- `wr` - 微软拼音（二进制，内部 UTF-16LE）
+- `wr` - 微软拼音 .dat 格式（二进制，内部 UTF-16LE）
+- `lex` - 微软拼音 .lex 格式（二进制，内部 UTF-16LE）
 - `rime` - Rime 输入法（UTF-8 编码）
 - `dd` - 多多输入法（UTF-8 编码）
 - `csv` - CSV 格式（拼音，位置，短语）

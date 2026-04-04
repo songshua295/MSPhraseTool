@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>短语格式转换工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#64748b',
+                        accent: '#10b981',
+                        neutral: '#f3f4f6',
+                        dark: '#1e293b',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .transition-all-300 {
+                transition: all 300ms ease-in-out;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- 顶部导航栏 -->
+    <header class="bg-white shadow-md">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-primary flex items-center">
+                <i class="fa fa-exchange mr-2"></i>
+                短语格式转换工具
+            </h1>
+            <div class="flex items-center space-x-4">
+                <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-100 transition-all-300">
+                    <i class="fa fa-moon-o text-gray-600"></i>
+                </button>
+                <button id="help-button" class="p-2 rounded-full hover:bg-gray-100 transition-all-300">
+                    <i class="fa fa-question-circle text-gray-600"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- 转换选项 -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-4 text-dark">转换设置</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- 源格式选择 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">源格式</label>
+                    <div class="relative">
+                        <select id="source-format" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md">
+                            <option value="bd">百度输入法 (bd)</option>
+                            <option value="sg">搜狗输入法 (sg)</option>
+                            <option value="wr">微软拼音 .dat (wr)</option>
+                            <option value="lex">微软拼音 .lex (lex)</option>
+                            <option value="rime">Rime 输入法 (rime)</option>
+                            <option value="dd">多多输入法 (dd)</option>
+                            <option value="csv">CSV 格式 (csv)</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                            <i class="fa fa-chevron-down text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 输入方式选择 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">输入方式</label>
+                    <div class="flex space-x-4">
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="input-method" value="file" class="form-radio text-primary" checked>
+                            <span class="ml-2">文件上传</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="input-method" value="text" class="form-radio text-primary">
+                            <span class="ml-2">文本输入</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 文件上传 -->
+            <div id="file-upload-section" class="mt-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">上传文件</label>
+                <div class="flex items-center justify-center w-full">
+                    <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                        <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                            <i class="fa fa-cloud-upload text-3xl text-gray-400 mb-2"></i>
+                            <p class="mb-2 text-sm text-gray-500"><span class="font-semibold">点击上传</span> 或拖放文件</p>
+                            <p class="text-xs text-gray-500">支持的文件类型: .txt, .csv, .dat, .lex</p>
+                        </div>
+                        <input id="file-input" type="file" class="hidden" />
+                    </label>
+                </div>
+                <div id="file-info" class="mt-2 text-sm text-gray-500 hidden">
+                    <span id="file-name"></span>
+                    <button id="remove-file" class="ml-2 text-red-500 hover:text-red-700">
+                        <i class="fa fa-times"></i> 移除
+                    </button>
+                </div>
+            </div>
+
+            <!-- 文本输入 -->
+            <div id="text-input-section" class="mt-6 hidden">
+                <label class="block text-sm font-medium text-gray-700 mb-2">输入文本</label>
+                <textarea id="text-input" rows="10" class="block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" placeholder="请输入短语内容..."></textarea>
+                <p class="mt-2 text-xs text-gray-500">请按照所选格式的要求输入内容</p>
+            </div>
+
+            <!-- 转换按钮 -->
+            <div class="mt-6 flex justify-center">
+                <button id="convert-button" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all-300">
+                    <i class="fa fa-magic mr-2"></i>
+                    开始转换
+                </button>
+            </div>
+        </div>
+
+        <!-- 转换结果 -->
+        <div id="result-section" class="bg-white rounded-lg shadow-md p-6 mb-8 hidden">
+            <h2 class="text-xl font-semibold mb-4 text-dark">转换结果</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- 结果文件列表 -->
+                <div>
+                    <h3 class="text-lg font-medium mb-3 text-gray-700">生成的文件</h3>
+                    <ul id="result-files" class="space-y-2">
+                        <!-- 结果文件将在这里动态生成 -->
+                    </ul>
+                </div>
+
+                <!-- 结果预览 -->
+                <div>
+                    <h3 class="text-lg font-medium mb-3 text-gray-700">预览</h3>
+                    <div id="preview-container" class="border border-gray-300 rounded-md p-4 bg-gray-50 h-64 overflow-auto">
+                        <p class="text-gray-500 text-center">选择一个文件进行预览</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-white border-t border-gray-200 py-6">
+        <div class="container mx-auto px-4 text-center text-gray-600">
+            <p>短语格式转换工具 &copy; 2026</p>
+            <p class="text-sm mt-1">支持百度、搜狗、微软、Rime、多多等输入法格式转换</p>
+        </div>
+    </footer>
+
+    <!-- 帮助模态框 -->
+    <div id="help-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold text-dark">使用帮助</h3>
+                    <button id="close-help" class="text-gray-400 hover:text-gray-600">
+                        <i class="fa fa-times"></i>
+                    </button>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <h4 class="font-medium text-gray-700">支持的格式</h4>
+                        <ul class="list-disc list-inside mt-2 text-gray-600">
+                            <li><strong>百度输入法 (bd):</strong> 格式为 code=order,word</li>
+                            <li><strong>搜狗输入法 (sg):</strong> 格式为 code,order=word</li>
+                            <li><strong>微软拼音 .dat (wr):</strong> 二进制格式</li>
+                            <li><strong>微软拼音 .lex (lex):</strong> 二进制格式</li>
+                            <li><strong>Rime 输入法 (rime):</strong> 格式为 word\tcode\tweight</li>
+                            <li><strong>多多输入法 (dd):</strong> 格式为 word\tcode 或 word\tcode\torder</li>
+                            <li><strong>CSV 格式 (csv):</strong> 格式为 pinyin,index,text</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-gray-700">使用方法</h4>
+                        <ol class="list-decimal list-inside mt-2 text-gray-600">
+                            <li>选择源格式</li>
+                            <li>选择输入方式（文件上传或文本输入）</li>
+                            <li>上传文件或输入文本</li>
+                            <li>点击 "开始转换" 按钮</li>
+                            <li>在结果页面查看生成的文件</li>
+                            <li>点击文件名称进行预览（仅文本格式）</li>
+                            <li>点击下载按钮下载文件</li>
+                        </ol>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-gray-700">注意事项</h4>
+                        <ul class="list-disc list-inside mt-2 text-gray-600">
+                            <li>二进制格式（.dat 和 .lex）不支持预览</li>
+                            <li>预览只显示部分内容，完整内容请下载查看</li>
+                            <li>转换过程可能需要一些时间，取决于文件大小</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end">
+                    <button id="close-help-btn" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-all-300">
+                        我知道了
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量，存储转换结果
+        let conversionResults = {};
+
+        // 基础数据结构
+        class Entry {
+            constructor(word, code, order) {
+                this.word = word;
+                this.code = code;
+                this.order = order;
+            }
+        }
+
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('短语格式转换工具已加载，所有功能均在前端实现');
+            console.log('支持的格式：百度、搜狗、Rime、多多、CSV');
+            console.log('使用方法：');
+            console.log('1. 选择源格式');
+            console.log('2. 选择输入方式（文件上传或文本输入）');
+            console.log('3. 上传文件或输入文本');
+            console.log('4. 点击 "开始转换" 按钮');
+            console.log('5. 查看转换结果');
+            console.log('6. 点击文件名称进行预览');
+            console.log('7. 点击下载按钮下载文件');
+            // 切换输入方式
+            const inputMethodRadios = document.querySelectorAll('input[name="input-method"]');
+            const fileUploadSection = document.getElementById('file-upload-section');
+            const textInputSection = document.getElementById('text-input-section');
+
+            inputMethodRadios.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    if (this.value === 'file') {
+                        fileUploadSection.classList.remove('hidden');
+                        textInputSection.classList.add('hidden');
+                    } else {
+                        fileUploadSection.classList.add('hidden');
+                        textInputSection.classList.remove('hidden');
+                    }
+                });
+            });
+
+            // 文件上传处理
+            const fileInput = document.getElementById('file-input');
+            const fileInfo = document.getElementById('file-info');
+            const fileName = document.getElementById('file-name');
+            const removeFile = document.getElementById('remove-file');
+
+            fileInput.addEventListener('change', function(e) {
+                if (e.target.files.length > 0) {
+                    const file = e.target.files[0];
+                    fileName.textContent = file.name;
+                    fileInfo.classList.remove('hidden');
+                }
+            });
+
+            removeFile.addEventListener('click', function() {
+                fileInput.value = '';
+                fileInfo.classList.add('hidden');
+            });
+
+            // 转换按钮点击事件
+            const convertButton = document.getElementById('convert-button');
+            const resultSection = document.getElementById('result-section');
+            const resultFiles = document.getElementById('result-files');
+            const previewContainer = document.getElementById('preview-container');
+            
+            // 全局变量，存储解析统计信息
+            let parseStats = { valid: 0, invalid: 0, errors: [] };
+
+            convertButton.addEventListener('click', async function() {
+                // 显示加载状态
+                convertButton.disabled = true;
+                convertButton.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i> 转换中...';
+
+                try {
+                    // 重置解析统计信息
+                    parseStats = { valid: 0, invalid: 0, errors: [] };
+
+                    // 获取输入数据
+                    const sourceFormat = document.getElementById('source-format').value;
+                    const inputMethod = document.querySelector('input[name="input-method"]:checked').value;
+                    let inputText = '';
+
+                    if (inputMethod === 'file') {
+                        const fileInput = document.getElementById('file-input');
+                        if (fileInput.files.length === 0) {
+                            alert('请选择文件');
+                            convertButton.disabled = false;
+                            convertButton.innerHTML = '<i class="fa fa-magic mr-2"></i> 开始转换';
+                            return;
+                        }
+
+                        // 读取文件内容
+                        const file = fileInput.files[0];
+                        console.log('正在读取文件:', file.name);
+                        inputText = await readFileAsText(file);
+                        console.log('文件内容长度:', inputText.length);
+                        console.log('文件内容前100字符:', inputText.substring(0, 100));
+                    } else {
+                        inputText = document.getElementById('text-input').value;
+                        if (!inputText.trim()) {
+                            alert('请输入文本内容');
+                            convertButton.disabled = false;
+                            convertButton.innerHTML = '<i class="fa fa-magic mr-2"></i> 开始转换';
+                            return;
+                        }
+                        console.log('输入文本长度:', inputText.length);
+                        console.log('输入文本前100字符:', inputText.substring(0, 100));
+                    }
+
+                    // 执行转换
+                    console.log('开始转换，源格式:', sourceFormat);
+                    const table = loadFormat(sourceFormat, inputText);
+                    console.log('转换完成，短语数量:', table.length);
+                    console.log('解析统计:', parseStats);
+                    
+                    if (!table || table.length === 0) {
+                        alert('未加载到任何短语数据，请检查文件格式是否正确\n\n提示：\n1. 确保选择了正确的源格式\n2. 检查文件编码格式是否正确\n3. 查看控制台日志获取详细错误信息');
+                        convertButton.disabled = false;
+                        convertButton.innerHTML = '<i class="fa fa-magic mr-2"></i> 开始转换';
+                        return;
+                    } else if (parseStats.invalid > 0) {
+                        // 如果有无效行，显示警告
+                        let message = `解析完成：\n有效行: ${parseStats.valid}\n无效行: ${parseStats.invalid}\n`;
+                        if (parseStats.invalid > 5) {
+                            message += '\n提示：有大量无效行，请检查文件格式是否正确。\n';
+                        }
+                        message += '\n详细错误信息请查看控制台日志。';
+                        alert(message);
+                    }
+
+                    // 生成转换结果
+                    console.log('生成转换结果');
+                    conversionResults = {
+                        bd: {
+                            file_name: '百度.ini.txt',
+                            type: 'text',
+                            content: saveBaidu(table)
+                        },
+                        sg: {
+                            file_name: 'PhraseEdit.txt',
+                            type: 'text',
+                            content: saveSogou(table)
+                        },
+                        rime: {
+                            file_name: 'Rime自定义短语.txt',
+                            type: 'text',
+                            content: saveRime(table)
+                        },
+                        dd: {
+                            file_name: '多多自定义短语.txt',
+                            type: 'text',
+                            content: saveDuoduo(table)
+                        },
+                        csv: {
+                            file_name: '自定义短语.csv',
+                            type: 'text',
+                            content: saveCsv(table)
+                        }
+                    };
+
+                    // 显示结果
+                    resultSection.classList.remove('hidden');
+
+                    // 生成结果文件列表
+                    resultFiles.innerHTML = '';
+                    const files = [
+                        { key: 'bd', name: '百度.ini.txt', type: 'text' },
+                        { key: 'sg', name: 'PhraseEdit.txt', type: 'text' },
+                        { key: 'wr', name: '微软.dat', type: 'binary' },
+                        { key: 'lex', name: '微软.lex', type: 'binary' },
+                        { key: 'rime', name: 'Rime自定义短语.txt', type: 'text' },
+                        { key: 'dd', name: '多多自定义短语.txt', type: 'text' },
+                        { key: 'csv', name: '自定义短语.csv', type: 'text' }
+                    ];
+
+                    files.forEach(file => {
+                        const li = document.createElement('li');
+                        li.className = 'flex items-center justify-between p-2 border-b border-gray-100 hover:bg-gray-50 rounded';
+                        
+                        let fileIcon = 'fa-file-text-o';
+                        if (file.type === 'binary') {
+                            fileIcon = 'fa-file-o';
+                        }
+
+                        li.innerHTML = `
+                            <div class="flex items-center">
+                                <i class="fa ${fileIcon} text-gray-500 mr-2"></i>
+                                <span class="${file.type === 'binary' ? 'text-gray-500' : 'text-primary cursor-pointer hover:underline'}" data-file="${file.key}" ${file.type !== 'binary' ? 'onclick="previewFile(this)"' : ''}>
+                                    ${file.name}
+                                </span>
+                                ${file.type === 'binary' ? '<span class="ml-2 text-xs text-gray-400">(二进制格式)</span>' : ''}
+                            </div>
+                            <button class="text-primary hover:text-primary/80" onclick="downloadFile('${file.key}')">
+                                <i class="fa fa-download"></i>
+                            </button>
+                        `;
+                        resultFiles.appendChild(li);
+                    });
+
+                    // 滚动到结果区域
+                    resultSection.scrollIntoView({ behavior: 'smooth' });
+                    console.log('转换完成，结果已显示');
+                } catch (error) {
+                    console.error('转换过程出错:', error);
+                    alert(`转换过程出错: ${error.message}\n\n请检查控制台获取详细错误信息`);
+                } finally {
+                    // 恢复按钮状态
+                    convertButton.disabled = false;
+                    convertButton.innerHTML = '<i class="fa fa-magic mr-2"></i> 开始转换';
+                }
+            });
+
+            // 预览文件
+            window.previewFile = function(element) {
+                const fileKey = element.getAttribute('data-file');
+                const previewContainer = document.getElementById('preview-container');
+                
+                if (conversionResults[fileKey] && conversionResults[fileKey].content) {
+                    const content = conversionResults[fileKey].content;
+                    // 只显示前 10 行
+                    const lines = content.split('\n');
+                    const previewContent = lines.slice(0, 10).join('\n');
+                    const hasMore = lines.length > 10;
+                    
+                    previewContainer.innerHTML = `
+                        <div class="font-mono text-sm">
+                            <pre class="whitespace-pre-wrap">${previewContent}</pre>
+                            ${hasMore ? '<p class="text-gray-500 text-xs mt-2">... 还有更多内容，请下载查看</p>' : ''}
+                        </div>
+                    `;
+                } else {
+                    previewContainer.innerHTML = '<p class="text-gray-500 text-center">预览内容不可用</p>';
+                }
+            };
+
+            // 下载文件
+            window.downloadFile = function(fileKey) {
+                if (conversionResults[fileKey]) {
+                    const result = conversionResults[fileKey];
+                    if (result.type === 'text') {
+                        // 文本文件，直接下载，指定 UTF-8 编码
+                        const content = result.content;
+                        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = result.file_name;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    } else if (result.type === 'binary') {
+                        // 二进制文件，提示用户
+                        alert('二进制格式文件需要通过 Python 脚本生成');
+                    }
+                } else {
+                    alert('文件不存在');
+                }
+            };
+
+            // 读取文件为文本，支持自动检测编码
+            function readFileAsText(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const arrayBuffer = e.target.result;
+                        const uint8Array = new Uint8Array(arrayBuffer);
+                        
+                        // 检测 BOM
+                        let encoding = 'utf-8';
+                        if (uint8Array.length >= 3 && uint8Array[0] === 0xEF && uint8Array[1] === 0xBB && uint8Array[2] === 0xBF) {
+                            // UTF-8 BOM
+                            encoding = 'utf-8';
+                        } else if (uint8Array.length >= 2 && uint8Array[0] === 0xFF && uint8Array[1] === 0xFE) {
+                            // UTF-16 LE BOM
+                            encoding = 'utf-16le';
+                        } else if (uint8Array.length >= 2 && uint8Array[0] === 0xFE && uint8Array[1] === 0xFF) {
+                            // UTF-16 BE BOM
+                            encoding = 'utf-16be';
+                        }
+                        
+                        // 尝试不同编码解码
+                        let text;
+                        try {
+                            // 首先尝试 UTF-8
+                            text = new TextDecoder('utf-8').decode(uint8Array);
+                        } catch (e) {
+                            try {
+                                // 尝试 GBK (中文常用编码)
+                                text = new TextDecoder('gbk').decode(uint8Array);
+                            } catch (e) {
+                                try {
+                                    // 尝试 UTF-16 LE
+                                    text = new TextDecoder('utf-16le').decode(uint8Array);
+                                } catch (e) {
+                                    // 最后尝试 ISO-8859-1
+                                    text = new TextDecoder('iso-8859-1').decode(uint8Array);
+                                }
+                            }
+                        }
+                        
+                        resolve(text);
+                    };
+                    reader.onerror = function(e) {
+                        reject(new Error('读取文件失败'));
+                    };
+                    reader.readAsArrayBuffer(file);
+                });
+            }
+
+            // 根据格式加载数据
+            function loadFormat(format, text) {
+                console.log('加载格式:', format);
+                console.log('文本长度:', text.length);
+                console.log('文本前100字符:', text.substring(0, 100));
+                console.log('文本后100字符:', text.substring(Math.max(0, text.length - 100)));
+                try {
+                    switch (format) {
+                        case 'bd':
+                            return loadBaidu(text);
+                        case 'sg':
+                            return loadSogou(text);
+                        case 'rime':
+                            return loadRime(text);
+                        case 'dd':
+                            return loadDuoduo(text);
+                        case 'csv':
+                            return loadCsv(text);
+                        default:
+                            console.error('不支持的格式:', format);
+                            alert('暂不支持此格式的解析');
+                            return [];
+                    }
+                } catch (error) {
+                    console.error('加载格式时出错:', error);
+                    console.error('错误堆栈:', error.stack);
+                    alert(`加载格式时出错: ${error.message}`);
+                    return [];
+                }
+            }
+
+            // 加载百度格式
+            function loadBaidu(text) {
+                console.log('加载百度格式');
+                const lines = text.split('\n');
+                const table = [];
+                let validLines = 0;
+                let invalidLines = 0;
+
+                for (const ln of lines) {
+                    const trimmed = ln.trim();
+                    if (!trimmed) continue;
+
+                    try {
+                        if (!trimmed.includes('=') || !trimmed.includes(',')) {
+                            console.warn('跳过无效行（格式错误）:', ln);
+                            invalidLines++;
+                            parseStats.errors.push({ line: ln, error: '格式错误' });
+                            continue;
+                        }
+
+                        const parts = trimmed.split('=');
+                        if (parts.length < 2) {
+                            console.warn('跳过无效行（缺少等号）:', ln);
+                            invalidLines++;
+                            parseStats.errors.push({ line: ln, error: '缺少等号' });
+                            continue;
+                        }
+                        
+                        const code = parts[0].trim();
+                        const orderWord = parts.slice(1).join('=');
+                        
+                        const orderWordParts = orderWord.split(',');
+                        if (orderWordParts.length < 2) {
+                            console.warn('跳过无效行（缺少逗号）:', ln);
+                            invalidLines++;
+                            parseStats.errors.push({ line: ln, error: '缺少逗号' });
+                            continue;
+                        }
+                        
+                        const order = parseInt(orderWordParts[0].trim());
+                        if (isNaN(order)) {
+                            console.warn('跳过无效行（无效顺序）:', ln);
+                            invalidLines++;
+                            parseStats.errors.push({ line: ln, error: '无效顺序' });
+                            continue;
+                        }
+                        
+                        const word = orderWordParts.slice(1).join(',').trim();
+                        if (!word) {
+                            console.warn('跳过无效行（空短语）:', ln);
+                            invalidLines++;
+                            parseStats.errors.push({ line: ln, error: '空短语' });
+                            continue;
+                        }
+
+                        table.push(new Entry(word, code, order));
+                        validLines++;
+                    } catch (e) {
+                        console.warn('跳过无效行:', ln, '错误:', e.message);
+                        invalidLines++;
+                        parseStats.errors.push({ line: ln, error: e.message });
+                        continue;
+                    }
+                }
+
+                // 更新全局统计信息
+                parseStats.valid += validLines;
+                parseStats.invalid += invalidLines;
+                
+                console.log(`百度格式解析完成: 有效行 ${validLines}, 无效行 ${invalidLines}`);
+                return table;
+            }
+
+            // 保存百度格式
+            function saveBaidu(table) {
+                return table.map(e => `${e.code}=${e.order},${e.word}`).join('\n');
+            }
+
+            // 加载搜狗格式
+            function loadSogou(text) {
+                console.log('加载搜狗格式');
+                const lines = text.split('\n');
+                const table = [];
+                const codeOrder = {}; // 用于为没有顺序号的编码分配默认顺序
+                let validLines = 0;
+                let invalidLines = 0;
+
+                for (const ln of lines) {
+                    const trimmed = ln.trim();
+                    if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith(';')) continue;
+
+                    try {
+                        if (!trimmed.includes('=')) {
+                            console.warn('跳过无效行（缺少等号）:', ln);
+                            invalidLines++;
+                            parseStats.errors.push({ line: ln, error: '缺少等号' });
+                            continue;
+                        }
+
+                        const parts = trimmed.split('=');
+                        if (parts.length < 2) {
+                            console.warn('跳过无效行（缺少等号）:', ln);
+                            invalidLines++;
+                            parseStats.errors.push({ line: ln, error: '缺少等号' });
+                            continue;
+                        }
+                        
+                        const encOrder = parts[0].trim();
+                        const word = parts.slice(1).join('=').trim();
+                        
+                        if (!word) {
+                            console.warn('跳过无效行（空短语）:', ln);
+                            invalidLines++;
+                            parseStats.errors.push({ line: ln, error: '空短语' });
+                            continue;
+                        }
+                        
+                        let enc, order;
+                        if (encOrder.includes(',')) {
+                            // 有逗号的情况，按原逻辑处理
+                            const encOrderParts = encOrder.split(',');
+                            const lastPart = encOrderParts[encOrderParts.length - 1].trim();
+                            const orderNum = parseInt(lastPart);
+                            
+                            if (!isNaN(orderNum)) {
+                                // 最后一部分是数字，作为顺序号
+                                order = orderNum;
+                                enc = encOrderParts.slice(0, -1).join(',').trim();
+                            } else {
+                                // 最后一部分不是数字，整个作为编码
+                                enc = encOrder;
+                                // 为编码分配默认顺序
+                                if (!codeOrder[enc]) codeOrder[enc] = 0;
+                                codeOrder[enc]++;
+                                order = codeOrder[enc];
+                            }
+                        } else {
+                            // 没有逗号的情况，整个作为编码
+                            enc = encOrder;
+                            // 为编码分配默认顺序
+                            if (!codeOrder[enc]) codeOrder[enc] = 0;
+                            codeOrder[enc]++;
+                            order = codeOrder[enc];
+                        }
+                        
+                        if (!enc) {
+                            console.warn('跳过无效行（空编码）:', ln);
+                            invalidLines++;
+                            parseStats.errors.push({ line: ln, error: '空编码' });
+                            continue;
+                        }
+
+                        table.push(new Entry(word, enc, order));
+                        validLines++;
+                    } catch (e) {
+                        console.warn('跳过无效行:', ln, '错误:', e.message);
+                        invalidLines++;
+                        parseStats.errors.push({ line: ln, error: e.message });
+                        continue;
+                    }
+                }
+
+                // 更新全局统计信息
+                parseStats.valid += validLines;
+                parseStats.invalid += invalidLines;
+                
+                console.log(`搜狗格式解析完成: 有效行 ${validLines}, 无效行 ${invalidLines}`);
+                return table;
+            }
+
+            // 保存搜狗格式
+            function saveSogou(table) {
+                return table.map(e => `${e.code},${e.order}=${e.word}`).join('\n');
+            }
+
+            // 加载 Rime 格式
+            function loadRime(text) {
+                console.log('加载 Rime 格式');
+                const lines = text.split('\n');
+                const table = [];
+                let validLines = 0;
+                let invalidLines = 0;
+
+                for (const ln of lines) {
+                    const trimmed = ln.trim();
+                    if (!trimmed || trimmed.startsWith('#')) continue;
+
+                    try {
+                        const parts = trimmed.split('\t');
+                        if (parts.length < 2) {
+                            console.warn('跳过无效行（格式错误）:', ln);
+                            invalidLines++;
+                            parseStats.errors.push({ line: ln, error: '格式错误' });
+                            continue;
+                        }
+
+                        const word = parts[0].trim();
+                        const code = parts[1].trim();
+                        
+                        if (!word) {
+                            console.warn('跳过无效行（空短语）:', ln);
+                            invalidLines++;
+                            parseStats.errors.push({ line: ln, error: '空短语' });
+                            continue;
+                        }
+                        
+                        if (!code) {
+                            console.warn('跳过无效行（空编码）:', ln);
+                            invalidLines++;
+                            parseStats.errors.push({ line: ln, error: '空编码' });
+                            continue;
+                        }
+                        
+                        const weight = parts.length > 2 && !isNaN(parseInt(parts[2])) ? parseInt(parts[2]) : 20;
+                        const order = Math.max(1, 20 - weight);
+
+                        table.push(new Entry(word, code, order));
+                        validLines++;
+                    } catch (e) {
+                        console.warn('跳过无效行:', ln, '错误:', e.message);
+                        invalidLines++;
+                        parseStats.errors.push({ line: ln, error: e.message });
+                        continue;
+                    }
+                }
+
+                // 更新全局统计信息
+                parseStats.valid += validLines;
+                parseStats.invalid += invalidLines;
+                
+                console.log(`Rime 格式解析完成: 有效行 ${validLines}, 无效行 ${invalidLines}`);
+                return table;
+            }
+
+            // 保存 Rime 格式
+            function saveRime(table) {
+                return table.map(e => {
+                    const weight = Math.max(0, 20 - e.order);
+                    return `${e.word}\t${e.code}\t${weight}`;
+                }).join('\n');
+            }
+
+            // 加载多多格式
+            function loadDuoduo(text) {
+                console.log('加载多多格式');
+                const lines = text.split('\n');
+                const table = [];
+                const codeOrder = {};
+                let validLines = 0;
+                let invalidLines = 0;
+
+                for (const ln of lines) {
+                    const trimmed = ln.trim();
+                    if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith(';')) continue;
+
+                    try {
+                        const parts = trimmed.split('\t');
+                        if (parts.length < 2) {
+                            console.warn('跳过无效行（格式错误）:', ln);
+                            invalidLines++;
+                            parseStats.errors.push({ line: ln, error: '格式错误' });
+                            continue;
+                        }
+
+                        const word = parts[0].trim();
+                        const code = parts[1].trim();
+                        
+                        if (!word) {
+                            console.warn('跳过无效行（空短语）:', ln);
+                            invalidLines++;
+                            parseStats.errors.push({ line: ln, error: '空短语' });
+                            continue;
+                        }
+                        
+                        if (!code) {
+                            console.warn('跳过无效行（空编码）:', ln);
+                            invalidLines++;
+                            parseStats.errors.push({ line: ln, error: '空编码' });
+                            continue;
+                        }
+
+                        let order;
+                        if (parts.length >= 3 && !isNaN(parseInt(parts[2].trim()))) {
+                            order = parseInt(parts[2].trim());
+                        } else {
+                            if (!codeOrder[code]) codeOrder[code] = 0;
+                            codeOrder[code]++;
+                            order = codeOrder[code];
+                        }
+
+                        table.push(new Entry(word, code, order));
+                        validLines++;
+                    } catch (e) {
+                        console.warn('跳过无效行:', ln, '错误:', e.message);
+                        invalidLines++;
+                        parseStats.errors.push({ line: ln, error: e.message });
+                        continue;
+                    }
+                }
+
+                // 更新全局统计信息
+                parseStats.valid += validLines;
+                parseStats.invalid += invalidLines;
+                
+                console.log(`多多格式解析完成: 有效行 ${validLines}, 无效行 ${invalidLines}`);
+                return table;
+            }
+
+            // 保存多多格式
+            function saveDuoduo(table) {
+                return table.map(e => `${e.word}\t${e.code}`).join('\n');
+            }
+
+            // 加载 CSV 格式
+            function loadCsv(text) {
+                console.log('加载 CSV 格式');
+                const lines = text.split('\n');
+                const table = [];
+                let validLines = 0;
+                let invalidLines = 0;
+
+                for (const ln of lines) {
+                    const trimmed = ln.trim();
+                    if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith(';')) continue;
+
+                    try {
+                        const parts = trimmed.split(',');
+                        if (parts.length < 3) {
+                            console.warn('跳过无效行（格式错误）:', ln);
+                            invalidLines++;
+                            parseStats.errors.push({ line: ln, error: '格式错误' });
+                            continue;
+                        }
+
+                        const pinyin = parts[0].trim();
+                        const indexStr = parts[1].trim();
+                        const word = parts.slice(2).join(',').trim();
+                        
+                        if (!pinyin) {
+                            console.warn('跳过无效行（空拼音）:', ln);
+                            invalidLines++;
+                            parseStats.errors.push({ line: ln, error: '空拼音' });
+                            continue;
+                        }
+                        
+                        if (!word) {
+                            console.warn('跳过无效行（空短语）:', ln);
+                            invalidLines++;
+                            parseStats.errors.push({ line: ln, error: '空短语' });
+                            continue;
+                        }
+                        
+                        const index = parseInt(indexStr);
+                        if (isNaN(index)) {
+                            console.warn('跳过无效行（无效索引）:', ln);
+                            invalidLines++;
+                            parseStats.errors.push({ line: ln, error: '无效索引' });
+                            continue;
+                        }
+
+                        table.push(new Entry(word, pinyin, index));
+                        validLines++;
+                    } catch (e) {
+                        console.warn('跳过无效行:', ln, '错误:', e.message);
+                        invalidLines++;
+                        parseStats.errors.push({ line: ln, error: e.message });
+                        continue;
+                    }
+                }
+
+                // 更新全局统计信息
+                parseStats.valid += validLines;
+                parseStats.invalid += invalidLines;
+                
+                console.log(`CSV 格式解析完成: 有效行 ${validLines}, 无效行 ${invalidLines}`);
+                return table;
+            }
+
+            // 保存 CSV 格式
+            function saveCsv(table) {
+                return table.map(e => `${e.code},${e.order},${e.word}`).join('\n');
+            }
+
+            // 主题切换
+            const themeToggle = document.getElementById('theme-toggle');
+            themeToggle.addEventListener('click', function() {
+                document.body.classList.toggle('bg-gray-900');
+                document.body.classList.toggle('text-white');
+                
+                const icons = document.querySelectorAll('i');
+                icons.forEach(icon => {
+                    icon.classList.toggle('text-white');
+                    icon.classList.toggle('text-gray-600');
+                });
+
+                const icon = themeToggle.querySelector('i');
+                if (icon.classList.contains('fa-moon-o')) {
+                    icon.classList.remove('fa-moon-o');
+                    icon.classList.add('fa-sun-o');
+                } else {
+                    icon.classList.remove('fa-sun-o');
+                    icon.classList.add('fa-moon-o');
+                }
+            });
+
+            // 帮助模态框
+            const helpButton = document.getElementById('help-button');
+            const helpModal = document.getElementById('help-modal');
+            const closeHelp = document.getElementById('close-help');
+            const closeHelpBtn = document.getElementById('close-help-btn');
+
+            helpButton.addEventListener('click', function() {
+                helpModal.classList.remove('hidden');
+            });
+
+            closeHelp.addEventListener('click', function() {
+                helpModal.classList.add('hidden');
+            });
+
+            closeHelpBtn.addEventListener('click', function() {
+                helpModal.classList.add('hidden');
+            });
+
+            // 点击模态框外部关闭
+            helpModal.addEventListener('click', function(e) {
+                if (e.target === helpModal) {
+                    helpModal.classList.add('hidden');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

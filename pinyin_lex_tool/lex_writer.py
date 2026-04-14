@@ -24,7 +24,7 @@ class LexFileWriter:
         pass
 
     def upsert(self, lex_path: str, items: List[Tuple[str, int, str]]) -> int:
-        """插入或更新一批短语：同拼音覆盖旧记录
+        """插入或更新一批短语：同拼音同索引覆盖旧记录
 
         Args:
             lex_path: .lex 文件路径
@@ -45,17 +45,23 @@ class LexFileWriter:
         int_overwritten = 0
         filtered = []
 
+        # 构建新短语的映射：(pinyin, index) -> text
+        new_items_map = {(pinyin, index): text for pinyin, index, text in items}
+
         for r in existing:
-            is_replaced = False
-            for n_pinyin, _, _ in items:
-                if self._bytes_equal(n_pinyin.encode('utf-16-le'), r[1]):
-                    is_replaced = True
+            # 检查现有记录是否需要被替换
+            should_replace = False
+            for (n_pinyin, n_index), _ in new_items_map.items():
+                # 只有当拼音和索引都匹配时才替换
+                if (self._bytes_equal(n_pinyin.encode('utf-16-le'), r[1]) and 
+                    struct.unpack('<I', r[2][6:10])[0] == self._display_index_to_storage_index(n_index)):
+                    should_replace = True
+                    int_overwritten += 1
                     break
-            if is_replaced:
-                int_overwritten += 1
-            else:
+            if not should_replace:
                 filtered.append(r)
 
+        # 添加所有新短语
         for pinyin, index, text in items:
             pinyin_bytes = pinyin.encode('utf-16-le')
             phrase_bytes = text.encode('utf-16-le')

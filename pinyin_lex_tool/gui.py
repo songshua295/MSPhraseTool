@@ -228,6 +228,9 @@ class MSPhraseToolGUI:
             try:
                 self.service.update_single_phrase(self.lex_path, pinyin, index, text)
                 self._load_phrases()
+                self.search_entry.delete(0, tk.END)
+                self.search_entry.insert(0, pinyin)
+                self._search_phrases()
                 messagebox.showinfo("成功", f"已新增短语：{pinyin} -> {text}")
             except Exception as e:
                 messagebox.showerror("错误", f"新增失败：{str(e)}")
@@ -253,6 +256,9 @@ class MSPhraseToolGUI:
                     self.service.delete_single_phrase(self.lex_path, pinyin, index, text)
                 self.service.update_single_phrase(self.lex_path, new_pinyin, new_index, new_text)
                 self._load_phrases()
+                self.search_entry.delete(0, tk.END)
+                self.search_entry.insert(0, new_pinyin)
+                self._search_phrases()
                 messagebox.showinfo("成功", f"已更新短语：{new_pinyin} -> {new_text}")
             except Exception as e:
                 messagebox.showerror("错误", f"更新失败：{str(e)}")

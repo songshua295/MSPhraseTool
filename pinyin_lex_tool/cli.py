@@ -427,7 +427,16 @@ def cmd_edit(args: argparse.Namespace) -> int:
         else:
             print(f"✓ 已在索引 {index} 插入新文本：{text}")
         
-        print(f"拼音 '{pinyin}' 的短语更新完成")
+        print(f"\n拼音 '{pinyin}' 更新后的所有短语：")
+        updated_phrases = service.list_phrases(lex_path, pinyin)
+        if not updated_phrases:
+            print("  （没有找到短语）")
+        else:
+            print(f"{'索引':<6} {'文本'}")
+            print("-" * 30)
+            for phrase in updated_phrases:
+                print(f"{phrase.index:<6} {phrase.text}")
+        
         return 0
     except Exception as e:
         print(f"错误：{e}")

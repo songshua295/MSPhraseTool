@@ -10,12 +10,12 @@ order 语义：同一 code 内部的候选顺序
 - 微软：二进制处理，内部使用 utf-16-le
 """
 
+import csv
 import io
 import os
 import struct
 import sys
 import time
-import csv
 from collections import defaultdict
 from typing import List, NamedTuple, Optional
 
@@ -46,7 +46,7 @@ def detect_file_encoding(path: str, expected_encoding: str = "utf-8") -> str:
     """
     try:
         # 读取文件前部分内容进行检测
-        with open(path, 'rb') as f:
+        with open(path, "rb") as f:
             raw_data = f.read(4096)
 
         if not raw_data:
@@ -55,33 +55,38 @@ def detect_file_encoding(path: str, expected_encoding: str = "utf-8") -> str:
         # 尝试使用 chardet 检测编码
         try:
             import chardet
+
             result = chardet.detect(raw_data)
-            detected_encoding = result['encoding']
-            confidence = result['confidence']
+            detected_encoding = result["encoding"]
+            confidence = result["confidence"]
 
             # 规范化编码名称
             encoding_map = {
-                'utf-8': 'utf-8',
-                'utf-8-sig': 'utf-8-sig',
-                'utf-16': 'utf-16-le',
-                'utf-16le': 'utf-16-le',
-                'utf-16-le': 'utf-16-le',
-                'gb2312': 'gb2312',
-                'gbk': 'gbk',
-                'gb18030': 'gb18030',
-                'big5': 'big5',
-                'ascii': 'ascii'
+                "utf-8": "utf-8",
+                "utf-8-sig": "utf-8-sig",
+                "utf-16": "utf-16-le",
+                "utf-16le": "utf-16-le",
+                "utf-16-le": "utf-16-le",
+                "gb2312": "gb2312",
+                "gbk": "gbk",
+                "gb18030": "gb18030",
+                "big5": "big5",
+                "ascii": "ascii",
             }
 
             detected_encoding = encoding_map.get(detected_encoding, detected_encoding)
 
             # 如果检测到的编码与预期不符，但如果是 utf-16-le 则自动支持
             if detected_encoding and confidence > 0.7:
-                normalized_expected = encoding_map.get(expected_encoding, expected_encoding)
+                normalized_expected = encoding_map.get(
+                    expected_encoding, expected_encoding
+                )
                 if detected_encoding.lower() != normalized_expected.lower():
                     # 如果是 utf-16-le 编码，自动支持，不报错
-                    if detected_encoding.lower() in ['utf-16-le', 'utf-16', 'utf-16le']:
-                        print(f"检测到 {detected_encoding} 编码，将自动转换为 utf-8 处理")
+                    if detected_encoding.lower() in ["utf-16-le", "utf-16", "utf-16le"]:
+                        print(
+                            f"检测到 {detected_encoding} 编码，将自动转换为 utf-8 处理"
+                        )
                         return detected_encoding
                     raise ValueError(
                         f"文件编码检测为 {detected_encoding} (置信度: {confidence:.2f})，"
@@ -91,11 +96,13 @@ def detect_file_encoding(path: str, expected_encoding: str = "utf-8") -> str:
 
         except ImportError:
             # chardet 未安装，尝试检测常见编码
-            print("警告: chardet 库未安装，尝试检测常见编码。建议安装: pip install chardet")
+            print(
+                "警告: chardet 库未安装，尝试检测常见编码。建议安装: pip install chardet"
+            )
 
             # 首先尝试使用预期编码
             try:
-                raw_data.decode(expected_encoding, errors='strict')
+                raw_data.decode(expected_encoding, errors="strict")
                 return expected_encoding
             except UnicodeDecodeError:
                 # 如果预期编码失败，尝试其他常见编码
@@ -106,20 +113,20 @@ def detect_file_encoding(path: str, expected_encoding: str = "utf-8") -> str:
                 # 检查文件大小是否为偶数（utf-16-le 特征）
                 if len(raw_data) >= 2 and len(raw_data) % 2 == 0:
                     # 检查是否有 BOM 标记（UTF-16 LE BOM 是 FF FE）
-                    if len(raw_data) >= 2 and raw_data[:2] == b'\xff\xfe':
-                        return 'utf-16-le'
+                    if len(raw_data) >= 2 and raw_data[:2] == b"\xff\xfe":
+                        return "utf-16-le"
 
                     # 尝试解码为 utf-16-le
-                    raw_data.decode('utf-16-le', errors='strict')
+                    raw_data.decode("utf-16-le", errors="strict")
 
                     # 额外的检查：utf-16-le 文本通常有很多 0x00 字节
                     # 统计 0x00 字节的比例
-                    zero_count = raw_data.count(b'\x00')
+                    zero_count = raw_data.count(b"\x00")
                     zero_ratio = zero_count / len(raw_data)
 
                     # 如果 0x00 字节比例较高，很可能是 utf-16-le
                     if zero_ratio > 0.1:  # 10% 以上的 0x00 字节
-                        return 'utf-16-le'
+                        return "utf-16-le"
                     else:
                         # 可能是其他编码，继续尝试其他编码
                         pass
@@ -127,10 +134,17 @@ def detect_file_encoding(path: str, expected_encoding: str = "utf-8") -> str:
                 pass
 
             # 尝试其他常见编码
-            common_encodings = ['gbk', 'gb2312', 'gb18030', 'big5', 'utf-8-sig', 'ascii']
+            common_encodings = [
+                "gbk",
+                "gb2312",
+                "gb18030",
+                "big5",
+                "utf-8-sig",
+                "ascii",
+            ]
             for enc in common_encodings:
                 try:
-                    raw_data.decode(enc, errors='strict')
+                    raw_data.decode(enc, errors="strict")
                     raise ValueError(
                         f"文件编码检测为 {enc}，但预期为 {expected_encoding}。"
                         f"请检查文件编码或安装 chardet 库进行更准确的检测。"
@@ -140,14 +154,21 @@ def detect_file_encoding(path: str, expected_encoding: str = "utf-8") -> str:
 
         # 如果检测置信度低或 chardet 不可用，尝试使用预期编码
         try:
-            raw_data.decode(expected_encoding, errors='strict')
+            raw_data.decode(expected_encoding, errors="strict")
             return expected_encoding
         except UnicodeDecodeError:
             # 尝试常见编码
-            common_encodings = ['utf-8', 'utf-8-sig', 'gbk', 'gb2312', 'gb18030', 'big5']
+            common_encodings = [
+                "utf-8",
+                "utf-8-sig",
+                "gbk",
+                "gb2312",
+                "gb18030",
+                "big5",
+            ]
             for enc in common_encodings:
                 try:
-                    raw_data.decode(enc, errors='strict')
+                    raw_data.decode(enc, errors="strict")
                     raise ValueError(
                         f"文件编码检测为 {enc}，但预期为 {expected_encoding}。"
                         f"请检查文件编码或安装 chardet 库进行更准确的检测。"
@@ -182,7 +203,7 @@ def read_text_file(path: str, expected_encoding: str = "utf-8") -> List[str]:
     encoding = detect_file_encoding(path, expected_encoding)
 
     # 如果检测到 utf-16-le 编码，自动转换为 utf-8
-    if encoding.lower() in ['utf-16-le', 'utf-16', 'utf-16le']:
+    if encoding.lower() in ["utf-16-le", "utf-16", "utf-16le"]:
         print(f"检测到 {encoding} 编码，自动转换为 utf-8 进行处理")
         try:
             # 以二进制模式读取文件
@@ -254,11 +275,9 @@ def load_baidu(path: str) -> Table:
             code, order_word = ln.split("=", 1)
             order, word = order_word.split(",", 1)
 
-            tbl.append(Entry(
-                word=word.strip(),
-                code=code.strip(),
-                order=int(order.strip())
-            ))
+            tbl.append(
+                Entry(word=word.strip(), code=code.strip(), order=int(order.strip()))
+            )
         except (ValueError, IndexError):
             print(f"警告：跳过无效行: {ln}")
             continue
@@ -291,11 +310,9 @@ def load_sogou(path: str) -> Table:
             enc_order, word = ln.split("=", 1)
             enc, order = enc_order.rsplit(",", 1)
 
-            tbl.append(Entry(
-                word=word.strip(),
-                code=enc.strip(),
-                order=int(order.strip())
-            ))
+            tbl.append(
+                Entry(word=word.strip(), code=enc.strip(), order=int(order.strip()))
+            )
         except (ValueError, IndexError):
             print(f"警告：跳过无效行: {ln}")
             continue
@@ -310,6 +327,7 @@ def save_sogou(path: str, table: Table):
 
 
 # -------------------- Rime --------------------
+
 
 def load_rime(path: str) -> Table:
     """加载 Rime 格式文件，使用 utf-8 编码"""
@@ -398,6 +416,7 @@ def save_csv(path: str, table: Table):
 
 
 # -------------------- 多多（核心修正） --------------------
+def load_duoduo(path: str) -> Table:
     """加载多多格式文件，使用 utf-8 编码
 
     多多格式：
@@ -536,89 +555,91 @@ def load_lex(path: str) -> Table:
     """加载微软 lex 格式文件，二进制格式，内部使用 utf-16-le 编码"""
     PHRASE_CNT_POS = 0x1C
     PHRASE_LEN_FIRST_POS = 0x44
-    
+
     with open(path, "rb") as f:
         data = f.read()
-    
+
     if len(data) < PHRASE_LEN_FIRST_POS:
         return []
-    
-    phrase_count = struct.unpack('<I', data[PHRASE_CNT_POS:PHRASE_CNT_POS + 4])[0]
+
+    phrase_count = struct.unpack("<I", data[PHRASE_CNT_POS : PHRASE_CNT_POS + 4])[0]
     if phrase_count <= 0:
         return []
-    
+
     first_offset_pos = PHRASE_LEN_FIRST_POS
     first_block_pos = first_offset_pos + 4 * (phrase_count - 1)
-    
+
     result = []
     last_pos = 0
-    
+
     for i in range(phrase_count):
         if i == phrase_count - 1:
             block_pos = -1
         else:
             offset_pos = first_offset_pos + i * 4
-            block_pos = struct.unpack('<I', data[offset_pos:offset_pos + 4])[0]
-        
+            block_pos = struct.unpack("<I", data[offset_pos : offset_pos + 4])[0]
+
         block_len = -1 if block_pos == -1 else (block_pos - last_pos)
         if block_len < 0:
-            seg = data[first_block_pos + last_pos:]
+            seg = data[first_block_pos + last_pos :]
         else:
-            seg = data[first_block_pos + last_pos:first_block_pos + last_pos + block_len]
+            seg = data[
+                first_block_pos + last_pos : first_block_pos + last_pos + block_len
+            ]
         last_pos = block_pos
-        
+
         if len(seg) < 16:
             continue
-        
+
         # 解析头部
-        header_len = struct.unpack('<I', seg[0:4])[0]
+        header_len = struct.unpack("<I", seg[0:4])[0]
         if header_len != 16:
             continue
-        
+
         body = seg[16:]
         if not body:
             continue
-        
+
         # 按 00 00 分割
         parts = []
         current = bytearray()
         for j in range(0, len(body), 2):
             if j + 1 < len(body):
-                if body[j] == 0x00 and body[j+1] == 0x00:
+                if body[j] == 0x00 and body[j + 1] == 0x00:
                     if len(current) >= 2:
                         parts.append(bytes(current))
                         current.clear()
                 else:
                     current.append(body[j])
-                    current.append(body[j+1])
-        
+                    current.append(body[j + 1])
+
         if len(current) >= 2:
             parts.append(bytes(current))
-        
+
         if len(parts) < 2:
             continue
-        
+
         try:
-            pinyin = parts[0].decode('utf-16-le').strip()
-            phrase = parts[1].decode('utf-16-le').replace('\r\n', '\n').strip()
+            pinyin = parts[0].decode("utf-16-le").strip()
+            phrase = parts[1].decode("utf-16-le").replace("\r\n", "\n").strip()
         except:
             continue
-        
-        storage_index = struct.unpack('<I', seg[8:12])[0]
+
+        storage_index = struct.unpack("<I", seg[8:12])[0]
         BASE_OFFSET = 1536  # 0x600
         display_index = storage_index - BASE_OFFSET
-        
+
         # 确保在有效范围内
         if display_index < 1:
             display_index = 1
         if display_index > 9:
             display_index = 9
-        
+
         if not pinyin or not phrase:
             continue
-        
+
         result.append(Entry(phrase, pinyin, display_index))
-    
+
     result.sort(key=lambda x: (x.code, x.order))
     return result
 
@@ -627,34 +648,34 @@ def save_lex(path: str, table: Table):
     """保存微软 lex 格式文件，二进制格式，内部使用 utf-16-le 编码"""
     PHRASE_CNT_POS = 0x1C
     PHRASE_LEN_FIRST_POS = 0x44
-    
+
     # 构建记录
     records = []
     for e in table:
         pinyin = e.code
         index = e.order
         text = e.word
-        
-        pinyin_bytes = pinyin.encode('utf-16-le')
-        phrase_bytes = text.encode('utf-16-le')
-        
+
+        pinyin_bytes = pinyin.encode("utf-16-le")
+        phrase_bytes = text.encode("utf-16-le")
+
         # 构建头部
-        header = struct.pack('<I', 16)  # 头部长度
-        header += struct.pack('<H', 0x10)  # 未知
-        header += struct.pack('<H', 0x10)  # 未知
-        header += struct.pack('<I', 1536 + index)  # 存储索引 = 基础偏移 + 显示索引
+        header = struct.pack("<I", 16)  # 头部长度
+        header += struct.pack("<H", 0x10)  # 未知
+        header += struct.pack("<H", 0x10)  # 未知
+        header += struct.pack("<I", 1536 + index)  # 存储索引 = 基础偏移 + 显示索引
         header += bytes([0x00] * 4)  # 填充
-        
+
         # 构建记录
-        record = header + pinyin_bytes + b'\x00\x00' + phrase_bytes + b'\x00\x00'
+        record = header + pinyin_bytes + b"\x00\x00" + phrase_bytes + b"\x00\x00"
         records.append((pinyin, index, record))
-    
+
     # 按拼音排序
     records.sort(key=lambda x: x[0])
-    
+
     # 提取排序后的记录
     sorted_records = [r[2] for r in records]
-    
+
     # 计算偏移量
     offsets = []
     current_offset = 0
@@ -662,34 +683,34 @@ def save_lex(path: str, table: Table):
         if len(offsets) < len(sorted_records) - 1:
             offsets.append(current_offset)
             current_offset += len(record)
-    
+
     # 构建文件内容
     # 头部
-    header = b'mschxudp' + b'\x02\x00\x60\x00\x01\x00\x00\x00'
-    header += struct.pack('<I', 0x40)  # 未知
-    header += struct.pack('<I', 0x40)  # 未知
-    header += struct.pack('<I', 0)  # 未知
-    header += struct.pack('<I', len(sorted_records))  # 短语数量
-    header += struct.pack('<I', 0)  # 未知
+    header = b"mschxudp" + b"\x02\x00\x60\x00\x01\x00\x00\x00"
+    header += struct.pack("<I", 0x40)  # 未知
+    header += struct.pack("<I", 0x40)  # 未知
+    header += struct.pack("<I", 0)  # 未知
+    header += struct.pack("<I", len(sorted_records))  # 短语数量
+    header += struct.pack("<I", 0)  # 未知
     header += bytes(32)  # 填充
-    
+
     # 偏移表
-    offset_table = b''
+    offset_table = b""
     for offset in offsets:
-        offset_table += struct.pack('<I', offset)
-    
+        offset_table += struct.pack("<I", offset)
+
     # 记录数据
-    record_data = b''
+    record_data = b""
     for record in sorted_records:
         record_data += record
-    
+
     # 组合所有部分
     file_data = header + offset_table + record_data
-    
+
     # 写入文件
-    with open(path, 'wb') as f:
+    with open(path, "wb") as f:
         f.write(file_data)
-    
+
     print(f"已保存 → {path} (lex 格式)")
 
 
@@ -705,8 +726,14 @@ def convert_phrases(src_format: str, src_path: str, out_dir: str = "out") -> boo
     Returns:
         bool: 转换是否成功
     """
+    # === 路径规范化：strip 空格引号 + normpath ===
+    src_path = os.path.normpath(src_path.strip().strip('"').strip("'"))
+    out_dir = os.path.normpath(out_dir.strip().strip('"').strip("'"))
+
     if not os.path.isfile(src_path):
         print(f"错误: 文件不存在: {src_path}")
+        print(f"当前工作目录: {os.getcwd()}")
+        print(f"提示: 请使用绝对路径，或确认文件相对于当前工作目录的位置")
         return False
 
     # 加载源文件
@@ -726,7 +753,9 @@ def convert_phrases(src_format: str, src_path: str, out_dir: str = "out") -> boo
         table = load_csv(src_path)
     else:
         print(f"错误: 不支持的源格式: {src_format}")
-        print("支持的格式: bd(百度), sg(搜狗), wr(微软), lex(微软lex), rime(Rime), dd(多多), csv(CSV)")
+        print(
+            "支持的格式: bd(百度), sg(搜狗), wr(微软), lex(微软lex), rime(Rime), dd(多多), csv(CSV)"
+        )
         return False
 
     if not table:
@@ -769,7 +798,14 @@ def interactive_main():
     # 如果是微软格式，默认使用系统 lex 文件路径
     if src == "wr" or src == "lex":
         import os
-        default_path = os.path.join(os.getenv("APPDATA", ""), "Microsoft", "InputMethod", "Chs", "ChsPinyinEUDPv1.lex")
+
+        default_path = os.path.join(
+            os.getenv("APPDATA", ""),
+            "Microsoft",
+            "InputMethod",
+            "Chs",
+            "ChsPinyinEUDPv1.lex",
+        )
         src_path = input(f"请输入源文件路径 (默认：{default_path}): ").strip(' "')
         if not src_path:
             src_path = default_path
@@ -805,33 +841,25 @@ def main():
   #   wr: 微软格式
   #   rime: Rime格式
   #   dd: 多多格式
-        """
+        """,
     )
 
     parser.add_argument(
-        "--format", "-f",
+        "--format",
+        "-f",
         type=str,
         choices=["bd", "sg", "wr", "lex", "rime", "dd", "csv"],
-        help="源文件格式 (bd:百度, sg:搜狗, wr:微软, lex:微软lex, rime:Rime, dd:多多, csv:CSV)"
+        help="源文件格式 (bd:百度, sg:搜狗, wr:微软, lex:微软lex, rime:Rime, dd:多多, csv:CSV)",
+    )
+
+    parser.add_argument("--input", "-i", type=str, help="源文件路径")
+
+    parser.add_argument(
+        "--output", "-o", type=str, default="out", help="输出文件夹路径 (默认: out)"
     )
 
     parser.add_argument(
-        "--input", "-i",
-        type=str,
-        help="源文件路径"
-    )
-
-    parser.add_argument(
-        "--output", "-o",
-        type=str,
-        default="out",
-        help="输出文件夹路径 (默认: out)"
-    )
-
-    parser.add_argument(
-        "--list-formats", "-l",
-        action="store_true",
-        help="列出支持的格式"
+        "--list-formats", "-l", action="store_true", help="列出支持的格式"
     )
 
     args = parser.parse_args()

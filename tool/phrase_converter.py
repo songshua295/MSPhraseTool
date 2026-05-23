@@ -714,6 +714,224 @@ def save_lex(path: str, table: Table):
     print(f"已保存 → {path} (lex 格式)")
 
 
+# -------------------- 时间变量适配 --------------------
+# 不同输入法使用不同的时间/日期变量语法，此模块负责在各格式间转换
+#
+# 搜狗格式: $var          例: #$year年$month_mm月$day_dd日
+# 百度/手心: $(var)        例: #$(year)年$(month_mm)月$(day_dd)日
+# 微软格式:  %var%         例: %yyyy%年%MM%月%dd%日
+
+
+def _build_var_mappings():
+    """构建各格式间的变量名映射表"""
+    # 所有格式共有的标准变量名（以搜狗命名为基准）
+    # 每个变量: (标准名, 搜狗格式, 百度格式, 微软格式, 描述)
+    variables = [
+        # 日期变量
+        ("year", "$year", "$(year)", "%yyyy%"),
+        ("year_yy", "$year_yy", "$(year_yy)", "%yy%"),
+        ("month", "$month", "$(month)", "%M%"),
+        ("month_mm", "$month_mm", "$(month_mm)", "%MM%"),
+        ("day", "$day", "$(day)", "%d%"),
+        ("day_dd", "$day_dd", "$(day_dd)", "%dd%"),
+        # 时间变量
+        ("fullhour", "$fullhour", "$(fullhour)", "%HH%"),
+        ("halfhour", "$halfhour", "$(halfhour)", "%hh%"),
+        ("minute", "$minute", "$(minute)", "%mm%"),
+        ("second", "$second", "$(second)", "%ss%"),
+        # 星期/AMPM
+        ("weekday", "$weekday", "$(weekday)", None),
+        ("ampm", "$ampm", "$(ampm)", None),
+        # 中文格式变量（微软无对应）
+        ("year_cn", "$year_cn", "$(year_cn)", None),
+        ("year_yy_cn", "$year_yy_cn", "$(year_yy_cn)", None),
+        ("month_cn", "$month_cn", "$(month_cn)", None),
+        ("day_cn", "$day_cn", "$(day_cn)", None),
+        ("weekday_cn", "$weekday_cn", "$(weekday_cn)", None),
+        ("fullhour_cn", "$fullhour_cn", "$(fullhour_cn)", None),
+        ("halfhour_cn", "$halfhour_cn", "$(halfhour_cn)", None),
+        ("ampm_cn", "$ampm_cn", "$(ampm_cn)", None),
+        ("minute_cn", "$minute_cn", "$(minute_cn)", None),
+        ("second_cn", "$second_cn", "$(second_cn)", None),
+        # 手心输入法独有变量（农历），其他格式无对应
+        ("year_ln", None, "$(year_ln)", None),
+        ("month_ln", None, "$(month_ln)", None),
+        ("day_ln", None, "$(day_ln)", None),
+    ]
+    return variables
+
+
+# 预编译正则表达式，提高匹配效率
+import re
+
+# 匹配搜狗格式: $var（变量名由字母、数字、下划线组成）
+_RE_SG = re.compile(r"\$([a-zA-Z_][a-zA-Z0-9_]*)")
+
+# 匹配百度/手心格式: $(var)
+_RE_BD = re.compile(r"\$\(([a-zA-Z_][a-zA-Z0-9_]*)\)")
+
+# 匹配微软格式: %var%
+_RE_MS = re.compile(r"%([a-zA-Z]+)%")
+
+
+def detect_time_expr_format(word: str) -> str:
+    """检测 word 中的时间表达式属于哪种输入法格式
+
+    Returns:
+        'sg'  - 搜狗格式（$var）
+        'bd'  - 百度/手心格式（$(var)）
+        'ms'  - 微软格式（%var%）
+        None  - 不含时间变量
+    """
+    if not word:
+        return None
+    # 微软格式：包含 %xxx% 模式
+    if _RE_MS.search(word):
+        return "ms"
+    # 百度/手心格式：包含 $(xxx) 模式
+    if _RE_BD.search(word):
+        return "bd"
+    # 搜狗格式：包含 $xxx 模式（且不以 $( 开头）
+    if _RE_SG.search(word):
+        return "sg"
+    return None
+
+
+def convert_time_expr(word: str, src_fmt: str, dst_fmt: str) -> str:
+    """将 word 中的时间变量从源格式转换为目标格式
+
+    Args:
+        word: 原始文本（可能包含时间表达式）
+        src_fmt: 源格式 ('sg', 'bd', 'ms')
+        dst_fmt: 目标格式 ('sg', 'bd', 'ms')
+
+    Returns:
+        转换后的文本
+    """
+    if not word or src_fmt == dst_fmt:
+        return word
+
+    vars_table = _build_var_mappings()
+
+    # 确定源格式的变量集合 和 目标格式的变量集合
+    src_idx = {"sg": 1, "bd": 2, "ms": 3}[src_fmt]
+    dst_idx = {"sg": 1, "bd": 2, "ms": 3}[dst_fmt]
+
+    # 构建替换映射: {源格式字符串: 目标格式字符串}
+    replace_map = {}
+    missing_vars = []  # 记录无对应映射的变量
+
+    for var_info in vars_table:
+        src_str = var_info[src_idx]
+        dst_str = var_info[dst_idx]
+        if src_str and dst_str:
+            replace_map[src_str] = dst_str
+        elif src_str and not dst_str:
+            missing_vars.append(src_str)
+
+    # 如果源格式和目标格式都不是搜狗也不是百度，先用中间格式过度
+    if src_fmt == "ms" and dst_fmt == "bd":
+        # 微软 → 搜狗 → 百度
+        sg_word = convert_time_expr(word, "ms", "sg")
+        return convert_time_expr(sg_word, "sg", "bd")
+    elif src_fmt == "bd" and dst_fmt == "ms":
+        # 百度 → 搜狗 → 微软
+        sg_word = convert_time_expr(word, "bd", "sg")
+        return convert_time_expr(sg_word, "sg", "ms")
+
+    if missing_vars:
+        print(
+            f"警告: 以下变量在目标格式中无对应，将保留原样: {', '.join(missing_vars)}"
+        )
+
+    # 按变量名字符串长度降序替换，避免短变量名被先替换后影响长变量名
+    # 例如 $month_mm 必须在 $month 之前替换，否则 $month_mm 会变成 %M%_mm
+    sorted_items = sorted(replace_map.items(), key=lambda x: len(x[0]), reverse=True)
+
+    result = word
+    for src_str, dst_str in sorted_items:
+        if src_str in result:
+            result = result.replace(src_str, dst_str)
+
+    return result
+
+
+def adapt_word_for_target(word: str, src_format: str, target_format: str) -> str:
+    """根据源格式和目标格式，对 word 中的时间变量做全面适配
+
+    这是统一的外部调用接口。会根据 src_format 和 target_format 自动判断
+    是否需要转换时间变量，并处理格式标记差异（如 # 前缀）。
+
+    Args:
+        word: 原始 word 文本
+        src_format: 源格式代码 ('bd','sg','wr','lex','rime','dd','csv')
+        target_format: 目标格式代码 ('bd','sg','wr','lex','rime','dd','csv')
+
+    Returns:
+        适配后的 word 文本
+    """
+    # 时间变量适配只在包含时间表达式的格式之间进行
+    # bd(百度) 和 sg(搜狗) 使用 # 前缀 + $ 变量
+    # wr/lex(微软) 使用 % 变量
+    # rime(多多) 纯文本，无时间变量
+    # csv 纯文本，无时间变量
+
+    # 映射：工具内部格式代码 → 时间变量格式代码
+    fmt_map = {
+        "bd": "bd",  # 百度 → 百度格式 $(var)
+        "sg": "sg",  # 搜狗 → 搜狗格式 $var
+        "wr": "ms",  # 微软.dat → 微软格式 %var%
+        "lex": "ms",  # 微软.lex → 微软格式 %var%
+    }
+
+    src_tfmt = fmt_map.get(src_format)
+    dst_tfmt = fmt_map.get(target_format)
+
+    # 如果源或目标不是时间变量格式，不转换
+    if not src_tfmt or not dst_tfmt:
+        return word
+
+    # 检测 word 是否包含时间变量
+    detected = detect_time_expr_format(word)
+    if detected is None:
+        return word
+
+    # 如果检测到的格式与声明的源格式不符，以检测结果为准
+    actual_src = detected
+
+    # 执行转换
+    return convert_time_expr(word, actual_src, dst_tfmt)
+
+
+def adapt_table_time_vars(table: Table, src_format: str, dst_format: str) -> Table:
+    """将表格中所有条目的时间变量从源格式转换为目标格式
+
+    Args:
+        table: 原始表格
+        src_format: 源格式代码
+        dst_format: 目标格式代码
+
+    Returns:
+        转换后的新表格（仅 word 字段变化）
+    """
+    # 仅在涉及时间变量格式之间转换时才处理
+    time_fmts = {"bd", "sg", "wr", "lex"}
+    if src_format not in time_fmts and dst_format not in time_fmts:
+        return table
+
+    result = []
+    changed_count = 0
+    for e in table:
+        new_word = adapt_word_for_target(e.word, src_format, dst_format)
+        if new_word != e.word:
+            changed_count += 1
+        result.append(Entry(word=new_word, code=e.code, order=e.order))
+
+    if changed_count > 0:
+        print(f"时间变量适配: 已转换 {changed_count} 条短语的时间表达式")
+    return result
+
+
 # -------------------- 转换函数 --------------------
 def convert_phrases(src_format: str, src_path: str, out_dir: str = "out") -> bool:
     """转换自定义短语格式
@@ -768,10 +986,25 @@ def convert_phrases(src_format: str, src_path: str, out_dir: str = "out") -> boo
         print(f"已创建输出文件夹: {out_dir}")
 
     # 保存到输出文件夹下
-    save_baidu(os.path.join(out_dir, "百度.ini.txt"), table)
-    save_sogou(os.path.join(out_dir, "PhraseEdit.txt"), table)
-    save_ms(os.path.join(out_dir, "微软.dat"), table)
-    save_lex(os.path.join(out_dir, "微软.lex"), table)
+    # 注意：每种格式保存前都通过 adapt_table_time_vars 转换时间变量
+    # 例如，从搜狗(sg)转百度(bd)时，$year → $(year)
+    # 从百度(bd)转微软(wr/lex)时，$(year) → %yyyy%
+    save_baidu(
+        os.path.join(out_dir, "百度.ini.txt"),
+        adapt_table_time_vars(table, src_format, "bd"),
+    )
+    save_sogou(
+        os.path.join(out_dir, "PhraseEdit.txt"),
+        adapt_table_time_vars(table, src_format, "sg"),
+    )
+    save_ms(
+        os.path.join(out_dir, "微软.dat"),
+        adapt_table_time_vars(table, src_format, "wr"),
+    )
+    save_lex(
+        os.path.join(out_dir, "微软.lex"),
+        adapt_table_time_vars(table, src_format, "lex"),
+    )
     save_rime(os.path.join(out_dir, "Rime自定义短语.txt"), table)
     save_duoduo(os.path.join(out_dir, "多多自定义短语.txt"), table)
     save_csv(os.path.join(out_dir, "自定义短语.csv"), table)

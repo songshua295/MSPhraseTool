@@ -487,13 +487,13 @@ def main(args: Optional[list] = None) -> int:
         epilog="""
 可用命令:
   export    导出系统当前自定义短语到 CSV 文件
-    用法: main export [output] [--lex LEX]
+    用法: main.py export [output] [--lex LEX]
     参数:
       output    输出文件路径 (CSV)，不指定时默认为"自定义短语.csv"
       --lex     可选：指定 .lex 文件路径
 
   import    从 TXT 导入短语到 .lex
-    用法: main import <input> [--lex LEX] [--no-backup] [--dry-run] [--verbose]
+    用法: main.py import <input> [--lex LEX] [--no-backup] [--dry-run] [--verbose]
     参数:
       input       输入 TXT 文件路径
       --lex       可选：指定 .lex 文件路径
@@ -502,18 +502,18 @@ def main(args: Optional[list] = None) -> int:
       --verbose   输出详细信息
 
   list      列出现有短语
-    用法: main list [--filter FILTER] [--lex LEX]
+    用法: main.py list [--filter FILTER] [--lex LEX]
     参数:
       --filter    可选：按拼音过滤
       --lex       可选：指定 .lex 文件路径
 
   debug     显示调试信息
-    用法: main debug [--verbose]
+    用法: main.py debug [--verbose]
     参数:
       --verbose   显示详细信息
 
   convert   短语类型转换（百度/搜狗/微软/Rime/多多/CSV互转）
-    用法: main convert --format FORMAT --input FILE [--output DIR] [--list-formats]
+    用法: main.py convert --format FORMAT --input FILE [--output DIR] [--list-formats]
     参数:
       --format, -f    源文件格式 (bd:百度，sg:搜狗，wr:微软.dat，lex:微软.lex，rime:Rime, dd:多多, csv:CSV)
       --input, -i     源文件路径
@@ -521,32 +521,32 @@ def main(args: Optional[list] = None) -> int:
       --list-formats, -l  列出支持的格式
 
   delete    删除微软拼音自定义短语
-    用法: main delete [--force] [--dry-run]
+    用法: main.py delete [--force] [--dry-run]
     参数:
       --force, -f     强制删除，不提示确认
       --dry-run, -n   只显示将要删除的文件，不实际删除
 
   edit      交互式修改单个短语
-    用法：main edit [--lex LEX]
+    用法：main.py edit [--lex LEX]
     参数:
       --lex       可选：指定 .lex 文件路径
     说明：交互式修改，会提示输入拼音、索引和文本
 
   upload    上传文件到 S3 存储
-    用法：main upload
+    用法：main.py upload
     说明：根据 .env 配置上传 lex 文件和其他文件到 S3 存储，显示 URL 列表和安装命令
 
 示例:
-  main export phrases.txt
-  main import phrases.txt
-  main list --filter hx
-  main debug --verbose
-  main convert --format bd --input baidu.txt
-  main delete --dry-run
-  main edit
-  main upload
+  main.py export phrases.txt
+  main.py import phrases.txt
+  main.py list --filter hx
+  main.py debug --verbose
+  main.py convert --format bd --input baidu.txt
+  main.py delete --dry-run
+  main.py edit
+  main.py upload
 
-使用 "main <命令> --help" 查看命令的详细帮助信息
+使用 "main.py <命令> --help" 查看命令的详细帮助信息
 """,
     )
 
@@ -614,7 +614,9 @@ def main(args: Optional[list] = None) -> int:
 
     # edit 命令
     edit_parser = subparsers.add_parser("edit", help="交互式修改单个短语")
-    edit_parser.add_argument("--lex", help="可选：指定 .lex 文件路径")
+    edit_parser.add_argument(
+        "--lex", "-i", type=str, help="可选：指定 .lex 文件路径（默认使用系统路径）"
+    )
     edit_parser.set_defaults(func=cmd_edit)
 
     # upload 命令

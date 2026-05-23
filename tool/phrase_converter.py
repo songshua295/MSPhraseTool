@@ -856,6 +856,33 @@ def convert_time_expr(word: str, src_fmt: str, dst_fmt: str) -> str:
     return result
 
 
+def _strip_hash_prefix(word: str, time_fmt: str) -> str:
+    """如果 word 以 # 开头且后接时间变量，去掉 # 前缀
+
+    搜狗/百度格式中，时间表达式以 # 开头，如 #$year年$month月
+    微软格式不使用 # 前缀，转换到微软时需要去掉
+    """
+    if word.startswith("#") and time_fmt in ("sg", "bd"):
+        # 仅当 # 后面紧跟着 $（时间变量）时，才去掉 #
+        rest = word[1:]
+        if rest.startswith("$"):
+            return rest
+    return word
+
+
+def _add_hash_prefix(word: str, time_fmt: str) -> str:
+    """如果 word 包含时间变量但缺少 # 前缀，添加 # 前缀
+
+    搜狗/百度格式中，时间表达式需要以 # 开头
+    从微软格式转换过来时，需要加上 # 前缀
+    """
+    if time_fmt in ("sg", "bd") and not word.startswith("#"):
+        # 检查 word 是否包含时间变量（以 $ 开头）
+        if word.startswith("$"):
+            return "#" + word
+    return word
+
+
 def adapt_word_for_target(word: str, src_format: str, target_format: str) -> str:
     """根据源格式和目标格式，对 word 中的时间变量做全面适配
 
@@ -899,8 +926,29 @@ def adapt_word_for_target(word: str, src_format: str, target_format: str) -> str
     # 如果检测到的格式与声明的源格式不符，以检测结果为准
     actual_src = detected
 
-    # 执行转换
-    return convert_time_expr(word, actual_src, dst_tfmt)
+    # === 处理 # 前缀 ===
+    # 搜狗/百度格式使用 # 前缀标记时间表达式
+    # 微软格式不使用 # 前缀
+    #
+    # 转换方向处理：
+    #   sg/bd → ms: 去掉 # 前缀（仅当 # 后是 $ 变量时）
+    #   ms → sg/bd: 添加 # 前缀
+    #   sg ↔ bd:     保持 # 前缀不变
+
+    work_word = word
+
+    # 如果目标格式是微软，去掉 # 前缀
+    if dst_tfmt == "ms":
+        work_word = _strip_hash_prefix(work_word, actual_src)
+
+    # 执行变量名转换
+    result = convert_time_expr(work_word, actual_src, dst_tfmt)
+
+    # 如果源格式是微软且目标格式是搜狗/百度，添加 # 前缀
+    if actual_src == "ms":
+        result = _add_hash_prefix(result, dst_tfmt)
+
+    return result
 
 
 def adapt_table_time_vars(table: Table, src_format: str, dst_format: str) -> Table:

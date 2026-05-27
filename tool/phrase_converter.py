@@ -676,13 +676,13 @@ def save_lex(path: str, table: Table):
     # 提取排序后的记录
     sorted_records = [r[2] for r in records]
 
-    # 计算偏移量
+    # 计算偏移量（每个偏移值是前一条记录的结束位置）
     offsets = []
     current_offset = 0
-    for record in sorted_records:
-        if len(offsets) < len(sorted_records) - 1:
+    for i, record in enumerate(sorted_records):
+        current_offset += len(record)
+        if i < len(sorted_records) - 1:
             offsets.append(current_offset)
-            current_offset += len(record)
 
     # 构建文件内容
     # 头部
@@ -839,11 +839,6 @@ def convert_time_expr(word: str, src_fmt: str, dst_fmt: str) -> str:
         sg_word = convert_time_expr(word, "bd", "sg")
         return convert_time_expr(sg_word, "sg", "ms")
 
-    if missing_vars:
-        print(
-            f"警告: 以下变量在目标格式中无对应，将保留原样: {', '.join(missing_vars)}"
-        )
-
     # 按变量名字符串长度降序替换，避免短变量名被先替换后影响长变量名
     # 例如 $month_mm 必须在 $month 之前替换，否则 $month_mm 会变成 %M%_mm
     sorted_items = sorted(replace_map.items(), key=lambda x: len(x[0]), reverse=True)
@@ -852,6 +847,14 @@ def convert_time_expr(word: str, src_fmt: str, dst_fmt: str) -> str:
     for src_str, dst_str in sorted_items:
         if src_str in result:
             result = result.replace(src_str, dst_str)
+
+    # 只检查实际出现在 word 中但无对应映射的变量，避免空泛警告
+    if missing_vars:
+        actually_present = [v for v in missing_vars if v in word]
+        if actually_present:
+            print(
+                f"警告: 以下变量在目标格式中无对应，将保留原样: {', '.join(actually_present)}"
+            )
 
     return result
 

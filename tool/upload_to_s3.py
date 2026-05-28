@@ -6,8 +6,20 @@ import subprocess
 import sys
 import urllib.parse
 
-import boto3
 from botocore.exceptions import ClientError
+
+# 检查并导入必要库
+try:
+    import boto3
+except ImportError:
+    print("❌ 缺少 boto3 库，请运行: pip install boto3")
+    sys.exit(1)
+
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    print("❌ 缺少 python-dotenv 库，请运行: pip install python-dotenv")
+    sys.exit(1)
 
 # 设置控制台编码为 UTF-8，支持 emoji 显示
 if sys.platform == "win32":
@@ -75,8 +87,15 @@ CONFIG = {
     "AWS_REGION": os.getenv("AWS_REGION", ""),
     "S3_ENDPOINT_URL": os.getenv("S3_ENDPOINT_URL", ""),
     "INCLUDE_LEX_FILE": os.getenv("INCLUDE_LEX_FILE", "true").lower() != "false",
-    "CONVERT_BEFORE_UPLOAD": os.getenv("CONVERT_BEFORE_UPLOAD", "true").lower() != "false",
-    "SYNC_FILES": [pattern.strip() for pattern in os.getenv("SYNC_FILES", "*.txt,*.csv,微软拼音短语_*.txt").split(",") if pattern.strip()],
+    "CONVERT_BEFORE_UPLOAD": os.getenv("CONVERT_BEFORE_UPLOAD", "true").lower()
+    != "false",
+    "SYNC_FILES": [
+        pattern.strip()
+        for pattern in os.getenv("SYNC_FILES", "*.txt,*.csv,微软拼音短语_*.txt").split(
+            ","
+        )
+        if pattern.strip()
+    ],
 }
 
 # --- 验证必要配置 ---
@@ -232,9 +251,21 @@ def upload_files_to_s3(config_params):
             )
             if lex_uploaded:
                 lex_url = f"{base_url}/ChsPinyinEUDPv1.lex"
-                print(f"\n🛠️ 安装命令:")
+                print(f"\n🛠️ 微软短语安装命令:")
                 print(
                     f'del /f /q "%APPDATA%\\Microsoft\\InputMethod\\Chs\\ChsPinyinEUDPv1.lex" & curl -o "%APPDATA%\\Microsoft\\InputMethod\\Chs\\ChsPinyinEUDPv1.lex" "{lex_url}" & pause'
+                )
+
+            # 如果上传了搜狗转换的 微软.lex 文件，显示安装命令
+            sogou_lex_uploaded = any(
+                file_name == "微软.lex"
+                for file_name, _ in files_to_upload
+            )
+            if sogou_lex_uploaded:
+                sogou_lex_url = f"{base_url}/微软.lex"
+                print(f"\n🛠️ 搜狗转换安装命令:")
+                print(
+                    f'del /f /q "%APPDATA%\\Microsoft\\InputMethod\\Chs\\ChsPinyinEUDPv1.lex" & curl -o "%APPDATA%\\Microsoft\\InputMethod\\Chs\\ChsPinyinEUDPv1.lex" "{sogou_lex_url}" & pause'
                 )
 
     except ClientError as e:

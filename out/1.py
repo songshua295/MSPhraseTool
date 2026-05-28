@@ -150,7 +150,7 @@ def cmd_convert(args: argparse.Namespace) -> int:
                 print("支持的格式:")
                 print("  bd: 百度格式 (code=order,word)")
                 print("  sg: 搜狗格式 (code,order=word)")
-                print("  dat: 微软 .dat 格式 (二进制 .dat 文件)")
+                print("  wr: 微软 .dat 格式 (二进制 .dat 文件)")
                 print("  lex: 微软 .lex 格式 (二进制 .lex 文件)")
                 print("  rime: Rime格式 (word\\tcode\\tweight)")
                 print("  dd: 多多格式 (word\\tcode 或 word\\tcode\\torder)")
@@ -360,17 +360,18 @@ def cmd_edit(args: argparse.Namespace) -> int:
         print("-" * 30)
         for phrase in existing_phrases:
             print(f"{phrase.index:<6} {phrase.text}")
-        print("\n提示：输入索引后直接按回车可删除对应短语")
 
     # 步骤3：输入索引
     while True:
-        index_input = input(f"\n请输入索引序号（或输入 'quit' 退出）: ").strip()
+        index_input = input(
+            f"\n请输入要修改/插入的索引 (1-9) 或输入 'quit' 退出: "
+        ).strip()
         if index_input.lower() == "quit":
             return 0
         try:
             index = int(index_input)
-            if index < 1:
-                print("索引必须大于 0")
+            if index < 1 or index > 9:
+                print("索引必须在 1-9 之间")
                 continue
             break
         except ValueError:
@@ -393,30 +394,42 @@ def cmd_edit(args: argparse.Namespace) -> int:
 
     # 步骤4：输入文本
     while True:
-        prompt = f"请输入要{action}的文本（空=删除，quit=退出）: "
-        text = input(prompt).strip()
+        text = input(
+            f"请输入要{action}的文本（或输入 'quit' 退出，输入空格或 'esc' 删除）: "
+        ).strip()
         if text.lower() == "quit":
             return 0
 
         # 检查是否要删除
-        if not text:
+        if not text or text.lower() == "esc":
             if action == "修改":
-                # 自动删除无需确认
-                try:
-                    deleted = service.delete_single_phrase(
-                        lex_path, pinyin.lower(), index, existing_at_index.text
+                # 确认删除
+                confirm = (
+                    input(
+                        f"确定要删除索引 {index} 的短语 '{existing_at_index.text}' 吗？(y/N): "
                     )
-                    if deleted:
-                        print(f"✓ 已删除索引 {index} 的短语")
-                    else:
-                        print("⚠ 删除失败")
+                    .strip()
+                    .lower()
+                )
+                if confirm == "y":
+                    try:
+                        deleted = service.delete_single_phrase(
+                            lex_path, pinyin.lower(), index, existing_at_index.text
+                        )
+                        if deleted:
+                            print(f"✓ 已删除索引 {index} 的短语")
+                        else:
+                            print("删除失败")
+                        return 0
+                    except Exception as e:
+                        print(f"错误：{e}")
+                        return 1
+                else:
+                    print("操作已取消")
                     return 0
-                except Exception as e:
-                    print(f"错误：{e}")
-                    return 1
             else:
-                print("⚠ 该索引位置没有短语，无需删除")
-                return 0
+                print("文本不能为空")
+                continue
 
         if len(text) > 64:
             print("文本长度不能超过64个字符")
@@ -472,16 +485,15 @@ def main(args: Optional[list] = None) -> int:
         description="微软拼音输入法自定义短语批量导入/导出工具&自定义短语格式转换工具",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-
 可用命令:
   export    导出系统当前自定义短语到 CSV 文件
-    用法: main.py export [output] [--lex LEX]
+    用法: main export [output] [--lex LEX]
     参数:
       output    输出文件路径 (CSV)，不指定时默认为"自定义短语.csv"
       --lex     可选：指定 .lex 文件路径
 
   import    从 TXT 导入短语到 .lex
-    用法: main.py import <input> [--lex LEX] [--no-backup] [--dry-run] [--verbose]
+    用法: main import <input> [--lex LEX] [--no-backup] [--dry-run] [--verbose]
     参数:
       input       输入 TXT 文件路径
       --lex       可选：指定 .lex 文件路径
@@ -490,51 +502,51 @@ def main(args: Optional[list] = None) -> int:
       --verbose   输出详细信息
 
   list      列出现有短语
-    用法: main.py list [--filter FILTER] [--lex LEX]
+    用法: main list [--filter FILTER] [--lex LEX]
     参数:
       --filter    可选：按拼音过滤
       --lex       可选：指定 .lex 文件路径
 
   debug     显示调试信息
-    用法: main.py debug [--verbose]
+    用法: main debug [--verbose]
     参数:
       --verbose   显示详细信息
 
   convert   短语类型转换（百度/搜狗/微软/Rime/多多/CSV互转）
-    用法: main.py convert --format FORMAT --input FILE [--output DIR] [--list-formats]
+    用法: main convert --format FORMAT --input FILE [--output DIR] [--list-formats]
     参数:
-      --format, -f    源文件格式 (bd:百度，sg:搜狗，dat:微软.dat，lex:微软.lex，rime:Rime, dd:多多, csv:CSV)
+      --format, -f    源文件格式 (bd:百度，sg:搜狗，wr:微软.dat，lex:微软.lex，rime:Rime, dd:多多, csv:CSV)
       --input, -i     源文件路径
       --output, -o    输出文件夹路径 (默认：out)
       --list-formats, -l  列出支持的格式
 
   delete    删除微软拼音自定义短语
-    用法: main.py delete [--force] [--dry-run]
+    用法: main delete [--force] [--dry-run]
     参数:
       --force, -f     强制删除，不提示确认
       --dry-run, -n   只显示将要删除的文件，不实际删除
 
   edit      交互式修改单个短语
-    用法：main.py edit [--lex LEX | -i LEX]
+    用法：main edit [--lex LEX]
     参数:
-      --lex, -i   可选：指定 .lex 文件路径（默认使用系统路径）
+      --lex       可选：指定 .lex 文件路径
     说明：交互式修改，会提示输入拼音、索引和文本
 
   upload    上传文件到 S3 存储
-    用法：main.py upload
+    用法：main upload
     说明：根据 .env 配置上传 lex 文件和其他文件到 S3 存储，显示 URL 列表和安装命令
 
 示例:
-  main.py export phrases.txt
-  main.py import phrases.txt
-  main.py list --filter hx
-  main.py debug --verbose
-  main.py convert --format bd --input baidu.txt
-  main.py delete --dry-run
-  main.py edit
-  main.py upload
+  main export phrases.txt
+  main import phrases.txt
+  main list --filter hx
+  main debug --verbose
+  main convert --format bd --input baidu.txt
+  main delete --dry-run
+  main edit
+  main upload
 
-使用 "main.py <命令> --help" 查看命令的详细帮助信息
+使用 "main <命令> --help" 查看命令的详细帮助信息
 """,
     )
 
@@ -545,7 +557,7 @@ def main(args: Optional[list] = None) -> int:
         "export", help="导出系统当前自定义短语到 CSV 文件"
     )
     export_parser.add_argument(
-        "output", nargs="?", help="输出文件路径 (CSV)，不指定时默认为'自定义短语.csv'"
+        "output", nargs="?", help='输出文件路径 (CSV)，不指定时默认为"自定义短语.csv"'
     )
     export_parser.add_argument("--lex", help="可选：指定 .lex 文件路径")
     export_parser.set_defaults(func=cmd_export)
@@ -578,8 +590,8 @@ def main(args: Optional[list] = None) -> int:
         "--format",
         "-f",
         type=str,
-        choices=["bd", "sg", "dat", "lex", "rime", "dd", "csv"],
-        help="源文件格式 (bd:百度，sg:搜狗，dat:微软.dat，lex:微软.lex，rime:Rime, dd:多多, csv:CSV)",
+        choices=["bd", "sg", "wr", "lex", "rime", "dd", "csv"],
+        help="源文件格式 (bd:百度，sg:搜狗，wr:微软.dat，lex:微软.lex，rime:Rime, dd:多多, csv:CSV)",
     )
     convert_parser.add_argument("--input", "-i", type=str, help="源文件路径")
     convert_parser.add_argument(
@@ -602,9 +614,7 @@ def main(args: Optional[list] = None) -> int:
 
     # edit 命令
     edit_parser = subparsers.add_parser("edit", help="交互式修改单个短语")
-    edit_parser.add_argument(
-        "--lex", "-i", type=str, help="可选：指定 .lex 文件路径（默认使用系统路径）"
-    )
+    edit_parser.add_argument("--lex", help="可选：指定 .lex 文件路径")
     edit_parser.set_defaults(func=cmd_edit)
 
     # upload 命令

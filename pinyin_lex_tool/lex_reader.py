@@ -64,13 +64,14 @@ class LexFileReader:
             pinyin = parts[0].decode('utf-16-le').strip()
             phrase = parts[1].decode('utf-16-le').replace('\r\n', '\n').strip()
 
-            storage_index = struct.unpack('<I', seg[6:10])[0]
-            display_index = self._storage_index_to_display_index(storage_index)
+            raw_index = struct.unpack('<I', seg[6:10])[0]
+            # 存储索引 (1537-1545) 转显示索引 (1-9)
+            index = raw_index - 1536
 
             if not pinyin or not phrase:
                 continue
 
-            result.append(PinyinPhrase(pinyin=pinyin, index=display_index, text=phrase))
+            result.append(PinyinPhrase(pinyin=pinyin, index=index, text=phrase))
 
         result.sort(key=lambda x: (x.pinyin, x.index))
         return result
@@ -101,22 +102,3 @@ class LexFileReader:
         if length < 0:
             return data[start:]
         return data[start:start + length]
-
-    def _storage_index_to_display_index(self, storage_index: int) -> int:
-        """将存储的索引值转换为显示索引值（1-9）
-        
-        Args:
-            storage_index: 从文件读取的存储索引值
-            
-        Returns:
-            显示索引值（1-9）
-        """
-        BASE_OFFSET = 1536  # 0x600
-        display_index = storage_index - BASE_OFFSET
-        
-        # 确保在有效范围内
-        if display_index < 1:
-            return 1
-        if display_index > 9:
-            return 9
-        return display_index

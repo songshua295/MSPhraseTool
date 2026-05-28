@@ -121,7 +121,7 @@ def upload_files_to_s3(config_params):
                                 "pinyin_lex_tool.cli",
                                 "convert",
                                 "--format",
-                                "wr",
+                                "lex",
                                 "--input",
                                 lex_file_path,
                                 "--output",

@@ -92,13 +92,17 @@ js,1,JavaScript
 - **短语**：最多 64 个字符
 - **编码**：UTF-8
 
-### 其他格式
+### convert 命令支持格式
 
-convert 命令支持以下输入格式：
-- 百度/搜狗：文本文件，每行 `短语 拼音`
-- Rime：YAML 格式
-- 微软：二进制 .lex 文件
-- 多多：特定格式文本文件
+| 格式代码 | 对应输入法 | 文件格式 |
+|----------|-----------|----------|
+| `bd` | 百度输入法 | UTF-8 文本 |
+| `sg` | 搜狗输入法 | UTF-8 文本 |
+| `dat` | 微软拼音 .dat | 二进制，UTF-16LE |
+| `lex` | 微软拼音 .lex | 二进制，UTF-16LE |
+| `rime` | Rime 输入法 | UTF-8 文本 |
+| `dd` | 多多输入法 | UTF-8 文本 |
+| `csv` | 通用 CSV | UTF-8 文本 |
 
 ## 命令详解
 
@@ -208,14 +212,16 @@ python main.py convert --format sg --input 搜狗短语.txt --output 我的转�
 # CSV 格式转微软格式
 python main.py convert --format csv --input 我的短语.csv
 
-# 微软格式转 CSV（导出用）
-python main.py convert --format wr --input ChsPinyinEUDPv1.lex
-```
+# 微软 .lex 转 CSV（导出用）
+python main.py convert --format lex --input ChsPinyinEUDPv1.lex
+
+# 微软 .dat 转 CSV
+python main.py convert --format dat --input 微软短语.dat
 
 **支持的格式：**
 - `bd` - 百度输入法（UTF-8 编码）
 - `sg` - 搜狗输入法（UTF-8 编码）
-- `wr` - 微软拼音 .dat 格式（二进制，内部 UTF-16LE）
+- `dat` - 微软拼音 .dat 格式（二进制，内部 UTF-16LE）
 - `lex` - 微软拼音 .lex 格式（二进制，内部 UTF-16LE）
 - `rime` - Rime 输入法（UTF-8 编码）
 - `dd` - 多多输入法（UTF-8 编码）

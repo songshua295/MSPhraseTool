@@ -23,6 +23,20 @@ class LexFileWriter:
     def __init__(self):
         pass
 
+    def create(self, lex_path: str, items: List[Tuple[str, int, str]]) -> None:
+        """从头创建新的 .lex 文件
+
+        Args:
+            lex_path: 输出 .lex 文件路径
+            items: 短语列表，每个元素是 (pinyin, index, text)
+        """
+        dir_path = Path(lex_path).parent
+        if dir_path and not dir_path.exists():
+            dir_path.mkdir(parents=True)
+
+        self._init_lex_file(lex_path)
+        self.upsert(lex_path, items)
+
     def upsert(self, lex_path: str, items: List[Tuple[str, int, str]]) -> int:
         """插入或更新一批短语：同拼音同索引覆盖旧记录
 

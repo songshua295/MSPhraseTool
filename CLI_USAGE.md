@@ -175,18 +175,17 @@ MSPhraseTool.exe convert --format sg --input 搜狗短语.txt --output 我的转
 # CSV格式转微软格式
 MSPhraseTool.exe convert --format csv --input 我的短语.csv
 
-# 微软格式转CSV（导出用）
-MSPhraseTool.exe convert --format wr --input ChsPinyinEUDPv1.lex
+# 微软格式转CSV（导出用）\nMSPhraseTool.exe convert --format lex --input ChsPinyinEUDPv1.lex
 ```
 
 **支持的格式：**
-- `bd`: 百度格式
-- `sg`: 搜狗格式  
-- `wr`: 微软 .dat 格式
-- `lex`: 微软 .lex 格式
-- `rime`: Rime格式
-- `dd`: 多多格式
-- `csv`: CSV格式
+- `bd`: 百度输入法（UTF-8 文本）
+- `sg`: 搜狗输入法（UTF-8 文本）
+- `dat`: 微软拼音 .dat（二进制，UTF-16LE）
+- `lex`: 微软拼音 .lex（二进制，UTF-16LE）
+- `rime`: Rime 输入法（UTF-8 文本）
+- `dd`: 多多输入法（UTF-8 文本）
+- `csv`: 通用 CSV（UTF-8 文本）
 
 ### delete - 删除短语
 删除微软拼音自定义短语。

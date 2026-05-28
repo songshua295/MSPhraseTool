@@ -150,7 +150,7 @@ def cmd_convert(args: argparse.Namespace) -> int:
                 print("支持的格式:")
                 print("  bd: 百度格式 (code=order,word)")
                 print("  sg: 搜狗格式 (code,order=word)")
-                print("  wr: 微软 .dat 格式 (二进制 .dat 文件)")
+                print("  dat: 微软 .dat 格式 (二进制 .dat 文件)")
                 print("  lex: 微软 .lex 格式 (二进制 .lex 文件)")
                 print("  rime: Rime格式 (word\\tcode\\tweight)")
                 print("  dd: 多多格式 (word\\tcode 或 word\\tcode\\torder)")
@@ -360,18 +360,17 @@ def cmd_edit(args: argparse.Namespace) -> int:
         print("-" * 30)
         for phrase in existing_phrases:
             print(f"{phrase.index:<6} {phrase.text}")
+        print("\n提示：输入索引后直接按回车可删除对应短语")
 
     # 步骤3：输入索引
     while True:
-        index_input = input(
-            f"\n请输入要修改/插入的索引 (1-9) 或输入 'quit' 退出: "
-        ).strip()
+        index_input = input(f"\n请输入索引序号（或输入 'quit' 退出）: ").strip()
         if index_input.lower() == "quit":
             return 0
         try:
             index = int(index_input)
-            if index < 1 or index > 9:
-                print("索引必须在 1-9 之间")
+            if index < 1:
+                print("索引必须大于 0")
                 continue
             break
         except ValueError:
@@ -394,42 +393,30 @@ def cmd_edit(args: argparse.Namespace) -> int:
 
     # 步骤4：输入文本
     while True:
-        text = input(
-            f"请输入要{action}的文本（或输入 'quit' 退出，输入空格或 'esc' 删除）: "
-        ).strip()
+        prompt = f"请输入要{action}的文本（空=删除，quit=退出）: "
+        text = input(prompt).strip()
         if text.lower() == "quit":
             return 0
 
         # 检查是否要删除
-        if not text or text.lower() == "esc":
+        if not text:
             if action == "修改":
-                # 确认删除
-                confirm = (
-                    input(
-                        f"确定要删除索引 {index} 的短语 '{existing_at_index.text}' 吗？(y/N): "
+                # 自动删除无需确认
+                try:
+                    deleted = service.delete_single_phrase(
+                        lex_path, pinyin.lower(), index, existing_at_index.text
                     )
-                    .strip()
-                    .lower()
-                )
-                if confirm == "y":
-                    try:
-                        deleted = service.delete_single_phrase(
-                            lex_path, pinyin.lower(), index, existing_at_index.text
-                        )
-                        if deleted:
-                            print(f"✓ 已删除索引 {index} 的短语")
-                        else:
-                            print("删除失败")
-                        return 0
-                    except Exception as e:
-                        print(f"错误：{e}")
-                        return 1
-                else:
-                    print("操作已取消")
+                    if deleted:
+                        print(f"✓ 已删除索引 {index} 的短语")
+                    else:
+                        print("⚠ 删除失败")
                     return 0
+                except Exception as e:
+                    print(f"错误：{e}")
+                    return 1
             else:
-                print("文本不能为空")
-                continue
+                print("⚠ 该索引位置没有短语，无需删除")
+                return 0
 
         if len(text) > 64:
             print("文本长度不能超过64个字符")
@@ -515,7 +502,7 @@ def main(args: Optional[list] = None) -> int:
   convert   短语类型转换（百度/搜狗/微软/Rime/多多/CSV互转）
     用法: main.py convert --format FORMAT --input FILE [--output DIR] [--list-formats]
     参数:
-      --format, -f    源文件格式 (bd:百度，sg:搜狗，wr:微软.dat，lex:微软.lex，rime:Rime, dd:多多, csv:CSV)
+      --format, -f    源文件格式 (bd:百度，sg:搜狗，dat:微软.dat，lex:微软.lex，rime:Rime, dd:多多, csv:CSV)
       --input, -i     源文件路径
       --output, -o    输出文件夹路径 (默认：out)
       --list-formats, -l  列出支持的格式
@@ -590,8 +577,8 @@ def main(args: Optional[list] = None) -> int:
         "--format",
         "-f",
         type=str,
-        choices=["bd", "sg", "wr", "lex", "rime", "dd", "csv"],
-        help="源文件格式 (bd:百度，sg:搜狗，wr:微软.dat，lex:微软.lex，rime:Rime, dd:多多, csv:CSV)",
+        choices=["bd", "sg", "dat", "lex", "rime", "dd", "csv"],
+        help="源文件格式 (bd:百度，sg:搜狗，dat:微软.dat，lex:微软.lex，rime:Rime, dd:多多, csv:CSV)",
     )
     convert_parser.add_argument("--input", "-i", type=str, help="源文件路径")
     convert_parser.add_argument(

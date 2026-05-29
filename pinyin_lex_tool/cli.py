@@ -336,18 +336,24 @@ def cmd_edit(args: argparse.Namespace) -> int:
     print("=== 交互式短语修改 ===")
     print(f"当前 .lex 文件：{lex_path}")
 
-    # 步骤 1：输入拼音
-    while True:
-        pinyin = input("请输入拼音（或输入 'quit' 退出）: ").strip()
-        if pinyin.lower() == "quit":
-            return 0
-        if not pinyin:
-            print("拼音不能为空，请重新输入")
-            continue
+    # 步骤 1：输入拼音（支持命令行参数直接指定）
+    pinyin = args.pinyin
+    if not pinyin:
+        while True:
+            pinyin = input("请输入拼音（或输入 'quit' 退出）: ").strip()
+            if pinyin.lower() == "quit":
+                return 0
+            if not pinyin:
+                print("拼音不能为空，请重新输入")
+                continue
+            if not service._validate_pinyin(pinyin):
+                print("拼音格式不正确，只能包含字母，最多 32 个字符")
+                continue
+            break
+    else:
         if not service._validate_pinyin(pinyin):
-            print("拼音格式不正确，只能包含字母，最多 32 个字符")
-            continue
-        break
+            print(f"错误：拼音格式不正确，'{pinyin}' 只能包含字母，最多 32 个字符")
+            return 1
 
     # 步骤2：显示现有短语
     print(f"\n拼音 '{pinyin}' 的现有短语：")
@@ -515,10 +521,11 @@ def main(args: Optional[list] = None) -> int:
       --dry-run, -n   只显示将要删除的文件，不实际删除
 
   edit      交互式修改单个短语
-    用法：main.py edit [--lex LEX | -i LEX]
+    用法：main.py edit [pinyin] [--lex LEX | -i LEX]
     参数:
+      pinyin     可选：直接指定拼音，跳过拼音输入步骤
       --lex, -i   可选：指定 .lex 文件路径（默认使用系统路径）
-    说明：交互式修改，会提示输入拼音、索引和文本
+    说明：交互式修改，会提示输入索引和文本。若直接指定拼音，可跳过拼音输入步骤。
 
   upload    上传文件到 S3 存储
     用法：main.py upload
@@ -531,7 +538,9 @@ def main(args: Optional[list] = None) -> int:
   main.py debug --verbose
   main.py convert --format bd --input baidu.txt
   main.py delete --dry-run
-  main.py edit
+  main.py edit              # 交互式，提示输入拼音
+  main.py edit hx            # 直接编辑拼音 hx 的短语
+  main.py edit "hao de"     # 直接编辑多字母拼音的短语
   main.py upload
 
 使用 "main.py <命令> --help" 查看命令的详细帮助信息
@@ -602,6 +611,9 @@ def main(args: Optional[list] = None) -> int:
 
     # edit 命令
     edit_parser = subparsers.add_parser("edit", help="交互式修改单个短语")
+    edit_parser.add_argument(
+        "pinyin", nargs="?", type=str, help="可选：直接指定拼音，跳过拼音输入步骤"
+    )
     edit_parser.add_argument(
         "--lex", "-i", type=str, help="可选：指定 .lex 文件路径（默认使用系统路径）"
     )

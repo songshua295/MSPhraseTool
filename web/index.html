@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<!-- 
+手心短语下载：
+https://s3.bitiful.net/share5/t/百度.ini.txt
+
+搜狗：
+https://s3.bitiful.net/share5/t/PhraseEdit.txt
+
+# 微软里设置小鹤音形
+删除自定义短语 、加载微软双拼和音形文件：cmd环境下使用
+```
+reg add HKCU\Software\Microsoft\InputMethod\Settings\CHS /v UserDefinedDoublePinyinScheme0 /t REG_SZ /d "小鹤双拼*2*^*iuvdjhcwfg^xmlnpbksqszxkrltvyovt" /f
+# 添加短语文件
+del "%APPDATA%\Microsoft\InputMethod\Chs\ChsPinyinEUDPv1.lex" & 
+powershell -Command "Invoke-WebRequest -Uri 'https://share5.s3.bitiful.net/t/ChsPinyinEUDPv1.lex' -OutFile '%APPDATA%\Microsoft\InputMethod\Chs\ChsPinyinEUDPv1.lex'"
+```
+
+微软自定义短语管理工具：[MSPhraseTool_v1.0.0_64bit.exe](https://github.com/songshua295/MSPhraseTool/releases/download/untagged-9146543b496db8a37b3e/MSPhraseTool_v1.0.0_64bit.exe)
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>输入法短语格式转换工具 · 网页版</title>
+<style>
+  :root{
+    --primary:#0f766e; --primary-dark:#115e59; --primary-light:#ccfbf1;
+    --accent:#b45309; --accent-light:#fef3c7;
+    --bg:#faf6ec; --card:#ffffff; --ink:#292524; --ink-soft:#57534e;
+    --line:#e7e0d2; --danger:#b91c1c; --danger-light:#fee2e2;
+    --ok:#15803d; --ok-light:#dcfce7;
+    --shadow:0 10px 30px rgba(15,118,110,.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.6;
+  }
+  header{
+    background:linear-gradient(135deg,var(--primary-dark),var(--primary));
+    color:#fff; padding:22px 28px; box-shadow:var(--shadow);
+  }
+  header h1{font-size:22px;display:flex;align-items:center;gap:10px}
+  header p{margin-top:6px;font-size:13px;opacity:.9}
+  main{max-width:1180px;margin:0 auto;padding:22px 18px 60px}
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    box-shadow:var(--shadow);padding:20px 22px;margin-bottom:20px;
+  }
+  .card h2{font-size:17px;color:var(--primary-dark);margin-bottom:14px;
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .card h2 .num{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:26px;height:26px;border-radius:50%;background:var(--primary);
+    color:#fff;font-size:14px;flex:none;
+  }
+  /* 导入区 */
+  .import-tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .tab-btn{
+    padding:8px 18px;border:1px solid var(--line);background:#fdfbf5;
+    border-radius:999px;cursor:pointer;font-size:14px;color:var(--ink-soft);
+    transition:all .2s;
+  }
+  .tab-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .tab-pane{display:none}
+  .tab-pane.active{display:block}
+  .drop-zone{
+    border:2px dashed #b8cdc9;border-radius:12px;background:#f4faf8;
+    padding:30px 20px;text-align:center;color:var(--ink-soft);cursor:pointer;
+    transition:all .2s;
+  }
+  .drop-zone:hover,.drop-zone.dragover{border-color:var(--primary);background:var(--primary-light)}
+  .drop-zone .big{font-size:34px;margin-bottom:8px}
+  .drop-zone b{color:var(--primary-dark)}
+  .url-row{display:flex;gap:10px;flex-wrap:wrap}
+  .url-row input{
+    flex:1;min-width:260px;padding:10px 14px;border:1px solid var(--line);
+    border-radius:10px;font-size:14px;outline:none;
+  }
+  .url-row input:focus{border-color:var(--primary)}
+  textarea.paste{
+    width:100%;min-height:130px;padding:12px 14px;border:1px solid var(--line);
+    border-radius:10px;font-size:13px;font-family:Consolas,monospace;
+    outline:none;resize:vertical;
+  }
+  textarea.paste:focus{border-color:var(--primary)}
+  .btn{
+    display:inline-flex;align-items:center;gap:6px;padding:9px 18px;
+    border:none;border-radius:10px;font-size:14px;cursor:pointer;
+    background:var(--primary);color:#fff;transition:all .15s;
+  }
+  .btn:hover{background:var(--primary-dark)}
+  .btn.ghost{background:#fdfbf5;color:var(--primary-dark);border:1px solid var(--line)}
+  .btn.ghost:hover{background:var(--primary-light)}
+  .btn.amber{background:var(--accent)}
+  .btn.amber:hover{background:#92400e}
+  .btn.sm{padding:5px 10px;font-size:12px;border-radius:8px}
+  .btn.danger{background:var(--danger)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .hint{font-size:12px;color:var(--ink-soft);margin-top:8px}
+  .badge{
+    display:inline-block;padding:3px 12px;border-radius:999px;font-size:12px;
+    font-weight:600;background:var(--accent-light);color:var(--accent);
+  }
+  .badge.ok{background:var(--ok-light);color:var(--ok)}
+  .badge.gray{background:#f5f2ea;color:var(--ink-soft)}
+  .meta-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px}
+  select,.sel{
+    padding:8px 10px;border:1px solid var(--line);border-radius:10px;
+    font-size:14px;background:#fdfbf5;color:var(--ink);outline:none;
+  }
+  /* 表格 */
+  .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .search-box{
+    flex:1;min-width:200px;display:flex;align-items:center;gap:8px;
+    padding:7px 14px;border:1px solid var(--line);border-radius:10px;background:#fdfbf5;
+  }
+  .search-box input{border:none;outline:none;flex:1;font-size:14px;background:transparent}
+  .table-wrap{border:1px solid var(--line);border-radius:12px;overflow:auto;max-height:560px}
+  table{width:100%;border-collapse:collapse;font-size:13px;min-width:640px}
+  thead th{
+    position:sticky;top:0;background:var(--primary-dark);color:#fff;
+    padding:9px 10px;text-align:left;font-weight:600;white-space:nowrap;z-index:2;
+  }
+  tbody td{padding:5px 8px;border-bottom:1px solid #f0ead9;vertical-align:middle}
+  tbody tr:nth-child(even){background:#fdfaf2}
+  tbody tr:hover{background:var(--primary-light)}
+  td.idx{color:var(--ink-soft);white-space:nowrap;text-align:right;width:52px}
+  td input{
+    width:100%;border:1px solid transparent;border-radius:6px;padding:5px 8px;
+    font-size:13px;background:transparent;outline:none;
+  }
+  td input:focus{border-color:var(--primary);background:#fff}
+  td input.code{width:130px;font-family:Consolas,monospace}
+  td input.order{width:64px;text-align:center}
+  td input.word{min-width:220px}
+  td.ops{width:44px;text-align:center}
+  .del-row{
+    border:none;background:transparent;color:var(--danger);cursor:pointer;
+    font-size:15px;padding:4px 8px;border-radius:6px;
+  }
+  .del-row:hover{background:var(--danger-light)}
+  .empty-tip{padding:40px;text-align:center;color:var(--ink-soft)}
+  .pager{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:14px;justify-content:space-between}
+  .pager .pages{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+  .pg{
+    min-width:32px;height:32px;padding:0 8px;border:1px solid var(--line);
+    background:#fdfbf5;border-radius:8px;cursor:pointer;font-size:13px;color:var(--ink-soft);
+  }
+  .pg:hover{border-color:var(--primary);color:var(--primary-dark)}
+  .pg.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .pg:disabled{opacity:.4;cursor:not-allowed}
+  .stat{font-size:13px;color:var(--ink-soft)}
+  /* 导出按钮 */
+  .fmt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+  .fmt-card{
+    border:1px solid var(--line);border-radius:12px;padding:14px;background:#fdfbf5;
+    display:flex;flex-direction:column;gap:8px;
+  }
+  .fmt-card .t{font-weight:700;font-size:14px;color:var(--primary-dark)}
+  .fmt-card .d{font-size:12px;color:var(--ink-soft);flex:1}
+  .fmt-card code{
+    display:block;font-size:11px;background:#f3eee0;border-radius:6px;
+    padding:5px 8px;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .fmt-card .row{display:flex;gap:8px}
+  .fmt-card .btn{flex:1;justify-content:center}
+  .warn-box{
+    margin-top:14px;border:1px solid #f0c987;background:var(--accent-light);
+    color:#7c4a03;border-radius:10px;padding:10px 14px;font-size:13px;display:none;
+  }
+  .warn-box.show{display:block}
+  /* toast */
+  #toast{
+    position:fixed;left:50%;bottom:34px;transform:translateX(-50%) translateY(20px);
+    background:var(--ink);color:#fff;padding:10px 22px;border-radius:999px;
+    font-size:14px;opacity:0;pointer-events:none;transition:all .3s;z-index:99;
+    max-width:80vw;
+  }
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  #toast.err{background:var(--danger)}
+  #toast.ok{background:var(--ok)}
+  .chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-soft);cursor:pointer}
+  footer{text-align:center;color:var(--ink-soft);font-size:12px;padding:10px 0 30px}
+</style>
+</head>
+<body>
+<header>
+  <h1>⌨️ 输入法自定义短语 · 格式转换工具（网页版）</h1>
+  <p>支持 百度 / 搜狗 / 微软 .dat / 微软 .lex / Rime / 多多 / CSV 互转 · 自动识别格式 · 表格编辑（搜索 + 分页）· 本地文件与远程 URL 导入 · 纯浏览器运行，数据不上传</p>
+</header>
+
+<main>
+  <!-- ① 导入 -->
+  <section class="card">
+    <h2><span class="num">1</span>导入短语
+      <span id="fmtBadge" class="badge gray" style="display:none"></span>
+      <span id="encBadge" class="badge gray" style="display:none"></span>
+    </h2>
+    <div class="import-tabs">
+      <button class="tab-btn active" data-tab="file">📁 本地文件</button>
+      <button class="tab-btn" data-tab="url">🌐 远程 URL</button>
+      <button class="tab-btn" data-tab="paste">📋 粘贴文本</button>
+    </div>
+
+    <div class="tab-pane active" id="pane-file">
+      <div class="drop-zone" id="dropZone">
+        <div class="big">📥</div>
+        <div><b>点击选择文件</b> 或将文件拖拽到此处</div>
+        <div class="hint">支持 .txt / .csv / .ini / .dat / .lex（自动检测 UTF-8、UTF-16LE、GBK 编码）</div>
+        <input type="file" id="fileInput" accept=".txt,.csv,.ini,.dat,.lex,.mb,.text" style="display:none">
+      </div>
+    </div>
+
+    <div class="tab-pane" id="pane-url">
+      <div class="url-row">
+        <input type="text" id="urlInput" placeholder="输入短语文件的 URL，例如 https://example.com/phrase.txt （目标站点需允许跨域访问）">
+        <button class="btn" id="urlFetchBtn">🔄 拉取并导入</button>
+      </div>
+      <div class="hint">提示：若远程站点不支持跨域（CORS），请先下载到本地再用“本地文件”导入。</div>
+    </div>
+
+    <div class="tab-pane" id="pane-paste">
+      <textarea class="paste" id="pasteArea" placeholder="将短语内容粘贴到这里，支持百度 / 搜狗 / Rime / 多多 / CSV 文本格式……"></textarea>
+      <div style="margin-top:10px"><button class="btn" id="pasteImportBtn">📥 导入粘贴内容</button></div>
+    </div>
+
+    <div class="meta-row">
+      <label class="chk"><input type="checkbox" id="mergeChk"> 追加合并到现有数据（默认替换）</label>
+      <span style="flex:1"></span>
+      <label style="font-size:13px;color:var(--ink-soft)">格式：
+        <select id="fmtOverride" class="sel">
+          <option value="auto">自动识别</option>
+          <option value="bd">百度（code=order,word）</option>
+          <option value="sg">搜狗（code,order=word）</option>
+          <option value="rime">Rime（词⇥编码⇥权重）</option>
+          <option value="dd">多多（词⇥编码）</option>
+          <option value="csv">CSV（pinyin,index,text）</option>
+          <option value="dat">微软 .dat（二进制）</option>
+          <option value="lex">微软 .lex（二进制）</option>
+        </select>
+      </label>
+      <button class="btn ghost sm" id="sampleBtn">✨ 载入示例数据</button>
+    </div>
+  </section>
+
+  <!-- ② 编辑 -->
+  <section class="card">
+    <h2><span class="num">2</span>表格编辑
+      <span class="stat" id="statText"></span>
+    </h2>
+    <div class="toolbar">
+      <div class="search-box">🔍
+        <input type="text" id="searchInput" placeholder="搜索拼音 / 编码 / 短语内容……">
+      </div>
+      <label style="font-size:13px;color:var(--ink-soft)">每页
+        <select id="pageSize" class="sel">
+          <option>20</option><option selected>50</option><option>100</option><option>200</option>
+        </select> 条
+      </label>
+      <button class="btn sm" id="addRowBtn">➕ 新增一行</button>
+      <button class="btn ghost sm" id="clearAllBtn">🗑️ 清空</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th style="width:52px;text-align:right">#</th>
+          <th style="width:150px">拼音 / 编码</th>
+          <th style="width:80px">位置(1-9)</th>
+          <th>短语内容</th>
+          <th style="width:44px"></th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div class="empty-tip" id="emptyTip">暂无数据，请先在上方导入短语文件，或点击“载入示例数据”体验。</div>
+    </div>
+    <div class="pager">
+      <span class="stat" id="pageInfo"></span>
+      <div class="pages" id="pages"></div>
+    </div>
+  </section>
+
+  <!-- ③ 导出 -->
+  <section class="card">
+    <h2><span class="num">3</span>转换并导出为其他格式</h2>
+    <div class="fmt-grid" id="fmtGrid"></div>
+    <div class="warn-box" id="warnBox"></div>
+  </section>
+</main>
+
+<footer>MSPhraseTool 网页版 · 对应 Python 版 tool/phrase_converter.py 的纯前端实现 · 所有处理均在本地浏览器完成</footer>
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* ================================================================
+ * 状态
+ * ================================================================ */
+const state = {
+  entries: [],          // {id, code, order, word}
+  srcFmt: null,         // 导入时识别出的格式
+  srcName: '',
+  search: '',
+  page: 1,
+  pageSize: 50,
+  lastText: null,       // 最近一次文本内容（用于切换格式重新解析）
+  _idSeq: 1,
+};
+
+const FMT_NAMES = {
+  bd:'百度输入法', sg:'搜狗输入法', dat:'微软 .dat', lex:'微软 .lex',
+  rime:'Rime 输入法', dd:'多多输入法', csv:'CSV 通用格式'
+};
+
+let toastTimer = null;
+function toast(msg, type){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + (type || '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ t.className = ''; }, 2600);
+}
+
+/* ================================================================
+ * 字节 / 编码工具
+ * ================================================================ */
+function encUtf16le(str){
+  // 与 Python str.encode('utf-16-le') 等价（按 UTF-16 码元，含代理对）
+  const out = new Uint8Array(str.length * 2);
+  for(let i=0;i<str.length;i++){
+    const c = str.charCodeAt(i);
+    out[i*2] = c & 0xFF;
+    out[i*2+1] = (c >> 8) & 0xFF;
+  }
+  return out;
+}
+function concatBytes(...arrs){
+  let len = 0;
+  for(const a of arrs) len += a.byteLength || a.length;
+  const out = new Uint8Array(len);
+  let p = 0;
+  for(const a of arrs){ out.set(a, p); p += a.byteLength || a.length; }
+  return out;
+}
+function cmpBytes(a, b){
+  const n = Math.min(a.length, b.length);
+  for(let i=0;i<n;i++){ if(a[i]!==b[i]) return a[i]-b[i]; }
+  return a.length - b.length;
+}
+function clampOrder(v){
+  v = parseInt(v, 10);
+  if(isNaN(v) || v < 1) v = 1;
+  if(v > 9) v = 9;
+  return v;
+}
+// 缓冲区 → 文本（自动 BOM / UTF-16LE / GBK 检测）
+function decodeTextBuffer(u8){
+  if(u8.length >= 3 && u8[0]===0xEF && u8[1]===0xBB && u8[2]===0xBF)
+    return { text: new TextDecoder('utf-8').decode(u8.subarray(3)), enc:'UTF-8(BOM)' };
+  if(u8.length >= 2 && u8[0]===0xFF && u8[1]===0xFE)
+    return { text: new TextDecoder('utf-16le').decode(u8.subarray(2)), enc:'UTF-16LE' };
+  const sample = u8.subarray(0, Math.min(u8.length, 4096));
+  let zeros = 0;
+  for(const b of sample) if(b===0) zeros++;
+  if(sample.length > 0 && zeros / sample.length > 0.1)
+    return { text: new TextDecoder('utf-16le').decode(u8), enc:'UTF-16LE' };
+  try{
+    return { text: new TextDecoder('utf-8', {fatal:true}).decode(u8), enc:'UTF-8' };
+  }catch(e){
+    try{ return { text: new TextDecoder('gbk').decode(u8), enc:'GBK' }; }
+    catch(e2){ return { text: new TextDecoder('utf-8').decode(u8), enc:'UTF-8(忽略错误)' }; }
+  }
+}
+
+/* ================================================================
+ * 微软二进制 .dat / .lex 解析（移植自 phrase_converter.py）
+ * 两种文件记录布局一致：头16字节 + 拼音(UTF-16LE) + 00 00 + 短语(UTF-16LE) + 00 00
+ * 记录头第 10 字节：lex = 0x06，dat = 0x00
+ * ================================================================ */
+function parseBinary(u8){
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  const n = dv.getUint32(0x1C, true);
+  if(!n || n > 2000000 || 0x40 + 4*n >= u8.byteLength) return null;
+  const entryBase = 0x40 + 4*n;
+  const offs = new Array(n+1);
+  offs[0] = 0;
+  for(let i=1;i<n;i++) offs[i] = dv.getUint32(0x40 + i*4, true);
+  offs[n] = u8.byteLength - entryBase;
+  const dec = new TextDecoder('utf-16le');
+  const entries = [];
+  let kind = null;
+  for(let i=0;i<n;i++){
+    const start = entryBase + offs[i];
+    const end = entryBase + offs[i+1];
+    if(end <= start || end > u8.byteLength) continue;
+    if(end - start < 16) continue;
+    if(kind === null) kind = (u8[start+10] === 0x06) ? 'lex' : 'dat';
+    const codeBytesLen = dv.getUint16(start+4, true) - 18;
+    const rawIdx = dv.getUint32(start+6, true);
+    let order = rawIdx - 1536;
+    if(order < 1 || order > 9) order = clampOrder(order);
+    const p0 = start + 16;
+    if(codeBytesLen <= 0 || p0 + codeBytesLen > end) continue;
+    const code = dec.decode(u8.subarray(p0, p0 + codeBytesLen)).trim();
+    let wp = p0 + codeBytesLen + 2;
+    let we = wp;
+    while(we + 1 < end){ if(u8[we]===0 && u8[we+1]===0) break; we += 2; }
+    const word = dec.decode(u8.subarray(wp, we)).replace(/\s*[\r\n]+\s*/g, ' ').trim();
+    if(code && word) entries.push({ code, order, word });
+  }
+  if(!entries.length) return null;
+  return { entries, kind };
+}
+
+/* ================================================================
+ * 文本格式解析
+ * ================================================================ */
+function normWord(s){ return s.replace(/\s*[\r\n]+\s*/g, ' ').trim(); }
+
+function parseBd(text){
+  const out = [];
+  for(let ln of text.split(/\r?\n/)){
+    ln = ln.trim();
+    if(!ln || ln.startsWith('#') || ln.startsWith(';')) continue;
+    const eq = ln.indexOf('=');
+    if(eq < 0) continue;
+    const code = ln.slice(0, eq).trim();
+    const rest = ln.slice(eq+1);
+    const comma = rest.indexOf(',');
+    if(comma < 0) continue;
+    const order = parseInt(rest.slice(0, comma).trim(), 10);
+    const word = normWord(rest.slice(comma+1));
+    if(code && !isNaN(order) && word) out.push({ code, order:clampOrder(order), word });
+  }
+  return out;
+}
+function parseSg(text){
+  const out = [];
+  for(let ln of text.split(/\r?\n/)){
+    ln = ln.trim();
+    if(!ln || ln.startsWith('#') || ln.startsWith(';')) continue;
+    const eq = ln.indexOf('=');
+    if(eq < 0) continue;
+    const left = ln.slice(0, eq);
+    const word = normWord(ln.slice(eq+1));
+    const ci = left.lastIndexOf(',');
+    if(ci < 0) continue;
+    const code = left.slice(0, ci).trim();
+    const order = parseInt(left.slice(ci+1).trim(), 10);
+    if(code && !isNaN(order) && word) out.push({ code, order:clampOrder(order), word });
+  }
+  return out;
+}
+function parseTab(text, fmt){
+  const out = [];
+  const codeCount = {};
+  for(let ln of text.split(/\r?\n/)){
+    ln = ln.trim();
+    if(!ln || ln.startsWith('#') || ln.startsWith(';')) continue;
+    const parts = ln.split('\t');
+    if(parts.length < 2) continue;
+    const word = normWord(parts[0]);
+    const code = parts[1].trim();
+    if(!word || !code) continue;
+    let order;
+    const third = (parts[2] || '').trim();
+    if(/^\d+$/.test(third)){
+      const v = parseInt(third, 10);
+      if(fmt === 'rime') order = Math.max(1, 20 - v);
+      else order = v;                 // 多多：第三列即顺序
+    }else{
+      if(fmt === 'rime') order = 1;   // 权重默认 20 → order 1
+      else { codeCount[code] = (codeCount[code]||0) + 1; order = codeCount[code]; }
+    }
+    out.push({ code, order:clampOrder(order), word });
+  }
+  return out;
+}
+function parseCsv(text){
+  const out = [];
+  let first = true;
+  for(let ln of text.split(/\r?\n/)){
+    ln = ln.trim();
+    if(!ln) continue;
+    if(first){
+      first = false;
+      if(/^pinyin\s*,\s*index\s*,\s*text/i.test(ln)) continue; // 表头
+      if(ln.startsWith('#') || ln.startsWith(';')) { first = true; continue; }
+    }
+    if(ln.startsWith('#') || ln.startsWith(';')) continue;
+    const parts = ln.split(',');
+    if(parts.length < 3) continue;
+    const code = parts[0].trim();
+    const order = parseInt(parts[1].trim(), 10);
+    const word = normWord(parts.slice(2).join(','));
+    if(code && !isNaN(order) && word) out.push({ code, order:clampOrder(order), word });
+  }
+  return out;
+}
+
+// 自动识别：对每种格式打分
+function detectTextFormat(text){
+  const lines = text.split(/\r?\n/).map(s=>s.trim())
+    .filter(s=>s && !s.startsWith('#') && !s.startsWith(';'));
+  if(!lines.length) return null;
+  const score = { bd:0, sg:0, rime:0, dd:0, csv:0 };
+  let tabWeightLarge = 0, tabOrderSmall = 0, tabNoThird = 0;
+  for(const ln of lines){
+    if(ln.includes('=')){
+      const eq = ln.indexOf('=');
+      const left = ln.slice(0, eq), right = ln.slice(eq+1);
+      if(/^\d+,/.test(right) && /^[^=,]+$/.test(left)) score.bd++;
+      if(/,\d+$/.test(left)) score.sg++;
+    }else if(ln.includes('\t')){
+      const p = ln.split('\t');
+      if(p.length >= 2 && /^[A-Za-z][A-Za-z0-9']*$/.test(p[1].trim())){
+        const third = (p[2]||'').trim();
+        if(/^\d+$/.test(third)){
+          const v = parseInt(third,10);
+          if(v > 9) tabWeightLarge++; else tabOrderSmall++;
+        }else tabNoThird++;
+      }
+    }else{
+      const p = ln.split(',');
+      if(p.length >= 3 && /^[A-Za-z][A-Za-z0-9']*$/.test(p[0].trim()) && /^\d+$/.test(p[1].trim()))
+        score.csv++;
+    }
+  }
+  // 仅当出现 >9 的权重值时才判为 Rime（权重是 Rime 的强特征）；
+  // 无第三列的两列形式（词⇥编码）是多多格式的典型写法
+  if(tabWeightLarge > 0) score.rime = tabWeightLarge + tabNoThird;
+  score.dd = tabOrderSmall + (tabWeightLarge > 0 ? 0 : tabNoThird);
+  let best = null, bestV = 0;
+  for(const k of ['bd','sg','rime','dd','csv']){
+    if(score[k] > bestV){ bestV = score[k]; best = k; }
+  }
+  return bestV > 0 ? best : null;
+}
+
+function parseTextByFmt(text, fmt){
+  switch(fmt){
+    case 'bd': return parseBd(text);
+    case 'sg': return parseSg(text);
+    case 'rime': return parseTab(text, 'rime');
+    case 'dd': return parseTab(text, 'dd');
+    case 'csv': return parseCsv(text);
+    default: return [];
+  }
+}
+
+/* ================================================================
+ * 时间变量适配（移植自 phrase_converter.py）
+ * 搜狗: $var   百度/手心: $(var)   微软: %var%
+ * ================================================================ */
+// [标准名, 搜狗, 百度, 微软]
+const VAR_TABLE = [
+  ['year','$year','$(year)','%yyyy%'],
+  ['year_yy','$year_yy','$(year_yy)','%yy%'],
+  ['month','$month','$(month)','%M%'],
+  ['month_mm','$month_mm','$(month_mm)','%MM%'],
+  ['day','$day','$(day)','%d%'],
+  ['day_dd','$day_dd','$(day_dd)','%dd%'],
+  ['fullhour','$fullhour','$(fullhour)','%HH%'],
+  ['halfhour','$halfhour','$(halfhour)','%hh%'],
+  ['minute','$minute','$(minute)','%mm%'],
+  ['second','$second','$(second)','%ss%'],
+  ['weekday','$weekday','$(weekday)',null],
+  ['ampm','$ampm','$(ampm)',null],
+  ['year_cn','$year_cn','$(year_cn)',null],
+  ['year_yy_cn','$year_yy_cn','$(year_yy_cn)',null],
+  ['month_cn','$month_cn','$(month_cn)',null],
+  ['day_cn','$day_cn','$(day_cn)',null],
+  ['weekday_cn','$weekday_cn','$(weekday_cn)',null],
+  ['fullhour_cn','$fullhour_cn','$(fullhour_cn)',null],
+  ['halfhour_cn','$halfhour_cn','$(halfhour_cn)',null],
+  ['ampm_cn','$ampm_cn','$(ampm_cn)',null],
+  ['minute_cn','$minute_cn','$(minute_cn)',null],
+  ['second_cn','$second_cn','$(second_cn)',null],
+  ['year_ln',null,'$(year_ln)',null],
+  ['month_ln',null,'$(month_ln)',null],
+  ['day_ln',null,'$(day_ln)',null],
+];
+const RE_MS = /%[a-zA-Z]+%/;
+const RE_BD = /\$\([a-zA-Z_][a-zA-Z0-9_]*\)/;
+const RE_SG = /\$[a-zA-Z_][a-zA-Z0-9_]*/;
+function detectTimeFmt(word){
+  if(RE_MS.test(word)) return 'ms';
+  if(RE_BD.test(word)) return 'bd';
+  if(RE_SG.test(word)) return 'sg';
+  return null;
+}
+function convertTimeExpr(word, src, dst){
+  if(src === dst) return word;
+  if(src === 'ms' && dst === 'bd') return convertTimeExpr(convertTimeExpr(word,'ms','sg'),'sg','bd');
+  if(src === 'bd' && dst === 'ms') return convertTimeExpr(convertTimeExpr(word,'bd','sg'),'sg','ms');
+  const idx = { sg:1, bd:2, ms:3 };
+  const si = idx[src], di = idx[dst];
+  const pairs = [];
+  for(const v of VAR_TABLE){
+    if(v[si] && v[di]) pairs.push([v[si], v[di]]);
+  }
+  pairs.sort((a,b)=> b[0].length - a[0].length);
+  let r = word;
+  for(const [s,d] of pairs){ r = r.split(s).join(d); }
+  return r;
+}
+const FMT_TIME_MAP = { bd:'bd', sg:'sg', dat:'ms', lex:'ms' };
+function adaptWord(word, srcFmt, dstFmt){
+  const s = FMT_TIME_MAP[srcFmt], d = FMT_TIME_MAP[dstFmt];
+  if(!s || !d) return word;
+  const det = detectTimeFmt(word);
+  if(!det) return word;
+  let w = word;
+  if(d === 'ms' && w.charAt(0) === '#' && w.charAt(1) === '$') w = w.slice(1);
+  w = convertTimeExpr(w, det, d);
+  if(det === 'ms' && (d === 'sg' || d === 'bd') && w.charAt(0) === '$') w = '#' + w;
+  return w;
+}
+// 返回 {entries, missing:Set(变量串)}
+function adaptTable(entries, srcFmt, dstFmt){
+  const s = FMT_TIME_MAP[srcFmt], d = FMT_TIME_MAP[dstFmt];
+  const missing = new Set();
+  if(!s || !d) return { entries, missing };
+  const si = { sg:1, bd:2, ms:3 }[s], di = { sg:1, bd:2, ms:3 }[d];
+  const out = entries.map(e=>{
+    const word = adaptWord(e.word, srcFmt, dstFmt);
+    const det = detectTimeFmt(e.word);
+    if(det && d === 'ms'){
+      for(const v of VAR_TABLE){
+        if(v[si] && !v[di] && e.word.includes(v[si])) missing.add(v[si]);
+      }
+    }
+    return { ...e, word };
+  });
+  return { entries: out, missing };
+}
+
+/* ================================================================
+ * 各格式导出
+ * ================================================================ */
+function buildBd(es){ return es.map(e=>`${e.code}=${e.order},${e.word}`).join('\r\n') + '\r\n'; }
+function buildSg(es){ return es.map(e=>`${e.code},${e.order}=${e.word}`).join('\r\n') + '\r\n'; }
+function buildRime(es){ return es.map(e=>`${e.word}\t${e.code}\t${Math.max(0, 20 - e.order)}`).join('\r\n') + '\r\n'; }
+function buildDd(es){ return es.map(e=>`${e.word}\t${e.code}`).join('\r\n') + '\r\n'; }
+function buildCsv(es){
+  return 'pinyin,index,text\r\n' + es.map(e=>`${e.code},${e.order},${e.word}`).join('\r\n') + '\r\n';
+}
+const SEP16 = new Uint8Array([0,0]);
+// 微软 .dat（移植 save_ms）
+function buildDat(es){
+  const n = es.length;
+  const stamp = Math.floor(Date.now()/1000);
+  const blobs = es.map(e=>{
+    const code = encUtf16le(e.code), word = encUtf16le(e.word);
+    const head = new Uint8Array(16);
+    const dv = new DataView(head.buffer);
+    dv.setUint16(0, 0x0010, true);
+    dv.setUint16(2, 0x0010, true);
+    dv.setUint16(4, code.byteLength + 18, true);
+    head[6] = clampOrder(e.order);
+    head[7] = 0x06;
+    dv.setUint32(12, stamp, true);
+    return concatBytes(head, code, SEP16, word, SEP16);
+  });
+  const sumLen = blobs.reduce((s,b)=>s+b.byteLength, 0);
+  const fileLen = 0x44 + 4*Math.max(0, n-1) + sumLen;
+  const buf = new Uint8Array(fileLen);
+  const dv = new DataView(buf.buffer);
+  buf.set(new TextEncoder().encode('mschxudp'), 0);
+  buf.set([0x02,0x00,0x60,0x00,0x01,0x00,0x00,0x00], 8);
+  dv.setUint32(0x10, 0x40, true);
+  dv.setUint32(0x14, 0x40 + 4*n, true);
+  dv.setUint32(0x18, fileLen, true);
+  dv.setUint32(0x1C, n, true);
+  dv.setUint32(0x20, stamp, true);
+  let off = 0;
+  for(let i=0;i<n-1;i++){ off += blobs[i].byteLength; dv.setUint32(0x44 + i*4, off, true); }
+  let p = 0x44 + 4*Math.max(0, n-1);
+  for(const b of blobs){ buf.set(b, p); p += b.byteLength; }
+  return buf;
+}
+// 微软 .lex（移植 LexFileWriter.create）
+function buildLex(es){
+  const n = es.length;
+  let recs = es.map(e=>{
+    const code = encUtf16le(e.code), word = encUtf16le(e.word);
+    const head = new Uint8Array(16);
+    const dv = new DataView(head.buffer);
+    dv.setUint16(0, 0x0010, true);
+    dv.setUint16(2, 0x0010, true);
+    dv.setUint16(4, 16 + code.byteLength + 2, true);
+    dv.setUint32(6, 1536 + clampOrder(e.order), true);
+    dv.setUint16(10, 0x0006, true);
+    dv.setUint16(12, 0x0000, true);
+    head[14] = 0xA5; head[15] = 0x2C;
+    return { code, blob: concatBytes(head, code, SEP16, word, SEP16) };
+  });
+  recs.sort((a,b)=>cmpBytes(a.code, b.code));
+  const blobs = recs.map(r=>r.blob);
+  const sumLen = blobs.reduce((s,b)=>s+b.byteLength, 0);
+  const fileLen = 0x44 + 4*Math.max(0, n-1) + sumLen;
+  const buf = new Uint8Array(fileLen);
+  const dv = new DataView(buf.buffer);
+  buf.set(new TextEncoder().encode('mschxudp'), 0);
+  buf.set([0x02,0x00,0x60,0x00,0x01,0x00,0x00,0x00], 8);
+  dv.setUint32(0x10, 0x40, true);
+  dv.setUint32(0x14, 64 + 4*n, true);
+  dv.setUint32(0x18, fileLen, true);
+  dv.setUint32(0x1C, n, true);
+  buf.set([0x38,0xD2,0xA3,0x65], 0x20);
+  let off = 0;
+  for(let i=0;i<n-1;i++){ off += blobs[i].byteLength; dv.setUint32(0x44 + i*4, off, true); }
+  let p = 0x44 + 4*Math.max(0, n-1);
+  for(const b of blobs){ buf.set(b, p); p += b.byteLength; }
+  return buf;
+}
+
+function downloadBlob(name, blob){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+
+/* ================================================================
+ * 导入流程
+ * ================================================================ */
+function loadEntries(parsed, fmt, merge){
+  const rows = parsed.map(e=>({ id: state._idSeq++, code:e.code, order:clampOrder(e.order), word:e.word }));
+  if(merge && state.entries.length) state.entries = state.entries.concat(rows);
+  else state.entries = rows;
+  state.srcFmt = fmt;
+  state.page = 1;
+  state.search = '';
+  document.getElementById('searchInput').value = '';
+  document.getElementById('fmtOverride').value = fmt || 'auto';
+  const badge = document.getElementById('fmtBadge');
+  if(fmt){
+    badge.style.display = 'inline-block';
+    badge.textContent = '识别格式：' + (FMT_NAMES[fmt] || fmt);
+    badge.className = 'badge ok';
+  }
+  renderAll();
+  return rows.length;
+}
+
+function handleBuffer(u8, name){
+  // 二进制？
+  let isBinary = u8.length >= 8;
+  if(isBinary){
+    const magic = new TextDecoder('utf-8').decode(u8.subarray(0,8));
+    isBinary = (magic === 'mschxudp');
+  }
+  const override = document.getElementById('fmtOverride').value;
+  const encBadge = document.getElementById('encBadge');
+
+  if(isBinary){
+    const parsed = parseBinary(u8);
+    if(!parsed){ toast('二进制文件解析失败，请确认是有效的微软 .dat / .lex 文件', 'err'); return; }
+    encBadge.style.display = 'inline-block';
+    encBadge.textContent = 'UTF-16LE 二进制';
+    encBadge.className = 'badge gray';
+    state.lastText = null;
+    const cnt = loadEntries(parsed.entries, parsed.kind, document.getElementById('mergeChk').checked);
+    toast(`成功导入 ${cnt} 条短语（${FMT_NAMES[parsed.kind]}）`, 'ok');
+    return;
+  }
+
+  const { text, enc } = decodeTextBuffer(u8);
+  state.lastText = text;
+  encBadge.style.display = 'inline-block';
+  encBadge.textContent = '编码：' + enc;
+  encBadge.className = 'badge gray';
+
+  let fmt = override;
+  if(fmt === 'auto' || fmt === 'dat' || fmt === 'lex') fmt = detectTextFormat(text);
+  if(!fmt){
+    toast('未能识别短语格式，请在“格式”下拉框中手动指定', 'err');
+    document.getElementById('fmtBadge').style.display = 'none';
+    return;
+  }
+  const entries = parseTextByFmt(text, fmt);
+  if(!entries.length){ toast('按【' + FMT_NAMES[fmt] + '】格式未解析到有效短语，请尝试手动指定格式', 'err'); return; }
+  const cnt = loadEntries(entries, fmt, document.getElementById('mergeChk').checked);
+  toast(`成功导入 ${cnt} 条短语（识别为：${FMT_NAMES[fmt]}）`, 'ok');
+}
+
+function handleText(text, name){
+  state.lastText = text;
+  const encBadge = document.getElementById('encBadge');
+  encBadge.style.display = 'none';
+  const override = document.getElementById('fmtOverride').value;
+  let fmt = override;
+  if(fmt === 'auto' || fmt === 'dat' || fmt === 'lex') fmt = detectTextFormat(text);
+  if(!fmt){ toast('未能识别短语格式，请在“格式”下拉框中手动指定', 'err'); return; }
+  const entries = parseTextByFmt(text, fmt);
+  if(!entries.length){ toast('未解析到有效短语', 'err'); return; }
+  const cnt = loadEntries(entries, fmt, document.getElementById('mergeChk').checked);
+  toast(`成功导入 ${cnt} 条短语（识别为：${FMT_NAMES[fmt]}）`, 'ok');
+}
+
+/* ================================================================
+ * 表格渲染（搜索 + 分页 + 行内编辑）
+ * ================================================================ */
+function getFiltered(){
+  const q = state.search.trim().toLowerCase();
+  if(!q) return state.entries;
+  return state.entries.filter(e=>
+    e.code.toLowerCase().includes(q) || e.word.toLowerCase().includes(q));
+}
+function esc(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function renderTable(){
+  const tbody = document.getElementById('tbody');
+  const filtered = getFiltered();
+  const pageSize = state.pageSize;
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  if(state.page > pageCount) state.page = pageCount;
+  const start = (state.page - 1) * pageSize;
+  const rows = filtered.slice(start, start + pageSize);
+
+  tbody.innerHTML = rows.map((e, i)=>`
+    <tr data-id="${e.id}">
+      <td class="idx">${start + i + 1}</td>
+      <td><input class="code" value="${esc(e.code)}" data-f="code" placeholder="如 rq"></td>
+      <td><input class="order" type="number" min="1" max="9" value="${e.order}" data-f="order"></td>
+      <td><input class="word" value="${esc(e.word)}" data-f="word" placeholder="短语内容"></td>
+      <td class="ops"><button class="del-row" title="删除此行">✕</button></td>
+    </tr>`).join('');
+
+  document.getElementById('emptyTip').style.display = state.entries.length ? 'none' : 'block';
+  document.getElementById('statText').textContent =
+    `共 ${state.entries.length} 条` + (state.search ? `，筛选出 ${filtered.length} 条` : '');
+  document.getElementById('pageInfo').textContent =
+    filtered.length ? `第 ${state.page} / ${pageCount} 页` : '';
+  renderPager(pageCount);
+}
+function renderPager(pageCount){
+  const box = document.getElementById('pages');
+  const cur = state.page;
+  const btns = [];
+  const mk = (label, page, opts={})=>{
+    const dis = opts.disabled ? 'disabled' : '';
+    const act = opts.active ? 'active' : '';
+    btns.push(`<button class="pg ${act}" ${dis} data-pg="${page}">${label}</button>`);
+  };
+  mk('« 首页', 1, {disabled: cur===1});
+  mk('‹ 上一页', cur-1, {disabled: cur===1});
+  let s = Math.max(1, cur-2), e = Math.min(pageCount, s+4);
+  s = Math.max(1, e-4);
+  for(let i=s;i<=e;i++) mk(i, i, {active: i===cur});
+  mk('下一页 ›', cur+1, {disabled: cur===pageCount});
+  mk('末页 »', pageCount, {disabled: cur===pageCount});
+  box.innerHTML = btns.join('');
+}
+function renderAll(){ renderTable(); }
+
+/* ================================================================
+ * 导出按钮
+ * ================================================================ */
+const EXPORT_FMTS = [
+  { fmt:'bd',  name:'百度输入法', file:'百度.ini.txt',
+    desc:'百度/手心格式，时间变量 $(year)，UTF-8', example:'rq=1,#$(year)-$(month_mm)-$(day_dd)', binary:false },
+  { fmt:'sg',  name:'搜狗输入法', file:'PhraseEdit.txt',
+    desc:'搜狗 phrases.ini，时间变量 $year，UTF-8', example:'rq,1=#$year-$month_mm-$day_dd', binary:false },
+  { fmt:'csv', name:'CSV（本工具/MSPhraseTool）', file:'自定义短语.csv',
+    desc:'pinyin,index,text，可再用 Python 版 import', example:'rq,1,%yyyy%-%MM%-%dd%', binary:false },
+  { fmt:'rime',name:'Rime 输入法', file:'Rime自定义短语.txt',
+    desc:'词⇥编码⇥权重（纯文本，无时间变量）', example:'2026-05-23⇥rq⇥19', binary:false },
+  { fmt:'dd',  name:'多多输入法', file:'多多自定义短语.txt',
+    desc:'词⇥编码（纯文本，无时间变量）', example:'2026-05-23⇥rq', binary:false },
+  { fmt:'dat', name:'微软 .dat（导入用）', file:'微软.dat',
+    desc:'二进制 UTF-16LE，微软拼音“导入”所需文件', example:'mschxudp 二进制', binary:true },
+  { fmt:'lex', name:'微软 .lex（词库文件）', file:'微软.lex',
+    desc:'二进制 UTF-16LE，ChsPinyinEUDPv1.lex 同格式', example:'mschxudp 二进制', binary:true },
+];
+function buildExportGrid(){
+  const grid = document.getElementById('fmtGrid');
+  grid.innerHTML = EXPORT_FMTS.map(f=>`
+    <div class="fmt-card">
+      <div class="t">${f.name}</div>
+      <code>${esc(f.example)}</code>
+      <div class="d">${f.desc}</div>
+      <div class="row">
+        <button class="btn sm" data-exp="${f.fmt}">⬇️ 下载</button>
+        ${f.binary ? '' : `<button class="btn ghost sm" data-copy="${f.fmt}">📄 复制</button>`}
+      </div>
+    </div>`).join('');
+}
+function doExport(fmt, copy){
+  if(!state.entries.length){ toast('没有可导出的数据，请先导入', 'err'); return; }
+  // 导出前规整
+  const clean = state.entries
+    .map(e=>({ code:String(e.code||'').trim(), order:clampOrder(e.order), word:String(e.word||'').trim() }))
+    .filter(e=>e.code && e.word);
+  if(!clean.length){ toast('没有有效行（编码和短语内容不能为空）', 'err'); return; }
+
+  const { entries, missing } = adaptTable(clean, state.srcFmt || fmt, fmt);
+  const warnBox = document.getElementById('warnBox');
+  if(missing.size){
+    warnBox.classList.add('show');
+    warnBox.textContent = '⚠️ 提示：以下时间变量在目标格式中无对应，已保留原样：' + [...missing].join('、') +
+      '（如中文/农历变量转为微软格式时会出现此情况）';
+  }else warnBox.classList.remove('show');
+
+  const meta = EXPORT_FMTS.find(f=>f.fmt===fmt);
+  if(fmt === 'dat'){
+    downloadBlob(meta.file, new Blob([buildDat(entries)], {type:'application/octet-stream'}));
+    toast('已生成 ' + meta.file + '（' + entries.length + ' 条）', 'ok');
+  }else if(fmt === 'lex'){
+    downloadBlob(meta.file, new Blob([buildLex(entries)], {type:'application/octet-stream'}));
+    toast('已生成 ' + meta.file + '（' + entries.length + ' 条）', 'ok');
+  }else{
+    const text = { bd:buildBd, sg:buildSg, rime:buildRime, dd:buildDd, csv:buildCsv }[fmt](entries);
+    if(copy){
+      navigator.clipboard.writeText(text).then(
+        ()=>toast('已复制 ' + entries.length + ' 条（' + meta.name + '）到剪贴板', 'ok'),
+        ()=>toast('复制失败，请改用下载', 'err'));
+    }else{
+      downloadBlob(meta.file, new Blob(['\ufeff' + text], {type:'text/plain;charset=utf-8'}));
+      toast('已导出 ' + meta.file + '（' + entries.length + ' 条）', 'ok');
+    }
+  }
+}
+
+/* ================================================================
+ * 事件绑定
+ * ================================================================ */
+document.addEventListener('DOMContentLoaded', ()=>{
+  buildExportGrid();
+
+  // Tab 切换
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('pane-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // 本地文件
+  const dz = document.getElementById('dropZone');
+  const fi = document.getElementById('fileInput');
+  dz.addEventListener('click', ()=>fi.click());
+  fi.addEventListener('change', e=>{
+    const f = e.target.files[0];
+    if(f) readFile(f);
+    fi.value = '';
+  });
+  ['dragover','dragenter'].forEach(ev=>dz.addEventListener(ev, e=>{
+    e.preventDefault(); dz.classList.add('dragover');
+  }));
+  ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev, e=>{
+    e.preventDefault(); dz.classList.remove('dragover');
+  }));
+  dz.addEventListener('drop', e=>{
+    const f = e.dataTransfer.files[0];
+    if(f) readFile(f);
+  });
+  function readFile(f){
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      try{ handleBuffer(new Uint8Array(reader.result), f.name); }
+      catch(err){ console.error(err); toast('文件读取失败：' + err.message, 'err'); }
+    };
+    reader.onerror = ()=>toast('文件读取失败', 'err');
+    reader.readAsArrayBuffer(f);
+  }
+
+  // 远程 URL
+  document.getElementById('urlFetchBtn').addEventListener('click', async ()=>{
+    const url = document.getElementById('urlInput').value.trim();
+    if(!url){ toast('请输入 URL', 'err'); return; }
+    const btn = document.getElementById('urlFetchBtn');
+    btn.disabled = true; btn.textContent = '⏳ 拉取中…';
+    try{
+      const resp = await fetch(url);
+      if(!resp.ok) throw new Error('HTTP ' + resp.status);
+      const buf = new Uint8Array(await resp.arrayBuffer());
+      handleBuffer(buf, url.split('/').pop() || 'remote');
+    }catch(err){
+      console.error(err);
+      toast('拉取失败：' + err.message + '（可能是跨域限制，请下载后本地导入）', 'err');
+    }finally{
+      btn.disabled = false; btn.textContent = '🔄 拉取并导入';
+    }
+  });
+
+  // 粘贴导入
+  document.getElementById('pasteImportBtn').addEventListener('click', ()=>{
+    const text = document.getElementById('pasteArea').value;
+    if(!text.trim()){ toast('粘贴内容为空', 'err'); return; }
+    handleText(text, 'paste');
+  });
+
+  // 手动切换格式 → 用最近文本重新解析
+  document.getElementById('fmtOverride').addEventListener('change', e=>{
+    const fmt = e.target.value;
+    if(state.lastText && fmt !== 'auto' && fmt !== 'dat' && fmt !== 'lex'){
+      const entries = parseTextByFmt(state.lastText, fmt);
+      if(entries.length){
+        loadEntries(entries, fmt, false);
+        toast('已按【' + FMT_NAMES[fmt] + '】重新解析，共 ' + entries.length + ' 条', 'ok');
+      }else toast('按该格式未解析到有效短语', 'err');
+    }
+  });
+
+  // 示例数据
+  document.getElementById('sampleBtn').addEventListener('click', ()=>{
+    const sample = [
+      { code:'rq', order:1, word:'#$(year)-$(month_mm)-$(day_dd)' },
+      { code:'sj', order:1, word:'#$(fullhour):$(minute):$(second)' },
+      { code:'clc', order:1, word:'Claude Code' },
+      { code:'cgp', order:1, word:'ChatGPT' },
+      { code:'py', order:1, word:'Python' },
+      { code:'js', order:1, word:'JavaScript' },
+      { code:'git', order:1, word:'git status' },
+      { code:'zh', order:1, word:'中华人民共和国' },
+    ];
+    state.lastText = null;
+    document.getElementById('encBadge').style.display = 'none';
+    loadEntries(sample, 'bd', false);
+    toast('已载入示例数据（百度格式，含时间变量）', 'ok');
+  });
+
+  // 搜索 / 分页
+  document.getElementById('searchInput').addEventListener('input', e=>{
+    state.search = e.target.value; state.page = 1; renderTable();
+  });
+  document.getElementById('pageSize').addEventListener('change', e=>{
+    state.pageSize = parseInt(e.target.value, 10); state.page = 1; renderTable();
+  });
+  document.getElementById('pages').addEventListener('click', e=>{
+    const btn = e.target.closest('.pg');
+    if(!btn || btn.disabled) return;
+    state.page = parseInt(btn.dataset.pg, 10) || 1; renderTable();
+  });
+
+  // 表格编辑（事件委托）
+  document.getElementById('tbody').addEventListener('input', e=>{
+    const inp = e.target.closest('input');
+    if(!inp) return;
+    const tr = e.target.closest('tr');
+    const entry = state.entries.find(x=>x.id === parseInt(tr.dataset.id, 10));
+    if(!entry) return;
+    if(inp.dataset.f === 'order') entry.order = clampOrder(inp.value);
+    else entry[inp.dataset.f] = inp.value;
+  });
+  document.getElementById('tbody').addEventListener('click', e=>{
+    const del = e.target.closest('.del-row');
+    if(!del) return;
+    const tr = del.closest('tr');
+    const id = parseInt(tr.dataset.id, 10);
+    state.entries = state.entries.filter(x=>x.id !== id);
+    renderTable();
+  });
+
+  // 新增 / 清空
+  document.getElementById('addRowBtn').addEventListener('click', ()=>{
+    state.entries.push({ id: state._idSeq++, code:'', order:1, word:'' });
+    state.search = '';
+    document.getElementById('searchInput').value = '';
+    const filtered = getFiltered();
+    state.page = Math.ceil(filtered.length / state.pageSize);
+    renderTable();
+    const lastRow = document.querySelector('#tbody tr:last-child input.code');
+    if(lastRow) lastRow.focus();
+    toast('已新增一行，请填写', '');
+  });
+  document.getElementById('clearAllBtn').addEventListener('click', ()=>{
+    if(!state.entries.length) return;
+    if(confirm('确定清空全部 ' + state.entries.length + ' 条短语？')){
+      state.entries = []; state.page = 1; renderTable();
+      toast('已清空', '');
+    }
+  });
+
+  // 导出 / 复制
+  document.getElementById('fmtGrid').addEventListener('click', e=>{
+    const exp = e.target.closest('[data-exp]');
+    const cpy = e.target.closest('[data-copy]');
+    if(exp) doExport(exp.dataset.exp, false);
+    if(cpy) doExport(cpy.dataset.copy, true);
+  });
+
+  renderAll();
+});
+</script>
+</body>
+<!-- 
+手心短语下载：
+https://s3.bitiful.net/share5/t/百度.ini.txt
+
+搜狗：
+https://s3.bitiful.net/share5/t/PhraseEdit.txt
+
+# 微软里设置小鹤音形
+删除自定义短语 、加载微软双拼和音形文件：cmd环境下使用
+```
+reg add HKCU\Software\Microsoft\InputMethod\Settings\CHS /v UserDefinedDoublePinyinScheme0 /t REG_SZ /d "小鹤双拼*2*^*iuvdjhcwfg^xmlnpbksqszxkrltvyovt" /f
+# 添加短语文件
+del "%APPDATA%\Microsoft\InputMethod\Chs\ChsPinyinEUDPv1.lex" & 
+powershell -Command "Invoke-WebRequest -Uri 'https://share5.s3.bitiful.net/t/ChsPinyinEUDPv1.lex' -OutFile '%APPDATA%\Microsoft\InputMethod\Chs\ChsPinyinEUDPv1.lex'"
+```
+
+微软自定义短语管理工具：[MSPhraseTool_v1.0.0_64bit.exe](https://github.com/songshua295/MSPhraseTool/releases/download/untagged-9146543b496db8a37b3e/MSPhraseTool_v1.0.0_64bit.exe)
+-->
+</html>

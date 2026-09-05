@@ -186,7 +186,7 @@ powershell -Command "Invoke-WebRequest -Uri 'https://share5.s3.bitiful.net/t/Chs
 </head>
 <body>
 <header>
-  <h1>⌨️ 输入法自定义短语 · 格式转换工具（网页版）</h1>
+  <h1>⌨️ 输入法自定义短语 · 格式转换工具<a href="xiaohe-setup.html" style="text-decoration: none; color: inherit;">（网页版）</a></h1>
   <p>支持 百度 / 搜狗 / 微软 .dat / 微软 .lex / Rime / 多多 / CSV 互转 · 自动识别格式 · 表格编辑（搜索 + 分页）· 本地文件与远程 URL 导入 · 纯浏览器运行，数据不上传</p>
 </header>
 
@@ -288,7 +288,7 @@ powershell -Command "Invoke-WebRequest -Uri 'https://share5.s3.bitiful.net/t/Chs
   </section>
 </main>
 
-<footer>MSPhraseTool 网页版 · 对应 Python 版 tool/phrase_converter.py 的纯前端实现 · 所有处理均在本地浏览器完成</footer>
+<footer>MSPhraseTool 网页版 · 对应 Python 版 tool/phrase_converter.py 的纯前端实现 · 所有处理均在本地浏览器完<a href="xiaohe-setup.html" style="text-decoration: none; color: inherit;">成</a></footer>
 <div id="toast"></div>
 
 <script>
@@ -1091,22 +1091,4 @@ document.addEventListener('DOMContentLoaded', ()=>{
 });
 </script>
 </body>
-<!-- 
-手心短语下载：
-https://s3.bitiful.net/share5/t/百度.ini.txt
-
-搜狗：
-https://s3.bitiful.net/share5/t/PhraseEdit.txt
-
-# 微软里设置小鹤音形
-删除自定义短语 、加载微软双拼和音形文件：cmd环境下使用
-```
-reg add HKCU\Software\Microsoft\InputMethod\Settings\CHS /v UserDefinedDoublePinyinScheme0 /t REG_SZ /d "小鹤双拼*2*^*iuvdjhcwfg^xmlnpbksqszxkrltvyovt" /f
-# 添加短语文件
-del "%APPDATA%\Microsoft\InputMethod\Chs\ChsPinyinEUDPv1.lex" & 
-powershell -Command "Invoke-WebRequest -Uri 'https://share5.s3.bitiful.net/t/ChsPinyinEUDPv1.lex' -OutFile '%APPDATA%\Microsoft\InputMethod\Chs\ChsPinyinEUDPv1.lex'"
-```
-
-微软自定义短语管理工具：[MSPhraseTool_v1.0.0_64bit.exe](https://github.com/songshua295/MSPhraseTool/releases/download/untagged-9146543b496db8a37b3e/MSPhraseTool_v1.0.0_64bit.exe)
--->
 </html>

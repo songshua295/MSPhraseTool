@@ -346,9 +346,12 @@ SYNC_FILES=*.txt,*.csv，微软拼音短语_*.txt
 
 除了 `web/.env` 文件，网页版还支持从 **Vercel 环境变量**读取配置（推荐，无需在仓库/产物中放配置文件）：
 
-1. 仓库根目录已提供 `vercel.json`：构建命令为 `node web/build-config.mjs`，产物目录为 `web`
-2. 在 Vercel 项目的 Settings → Environment Variables 中添加配置项，键名与 `web/.env.example` 完全一致（`ACCESS_CODE_HASH`、`SYNC_TARGETS`、`S3_*`、`GITHUB_*` 等），值直接填明文即可，与 `web/.env` 格式完全相同
-3. 部署时构建脚本会把环境变量注入为 `web/config.js`（`window.__MSPT_ENV__`），页面读取顺序为：**注入的 config.js 优先 → web/.env 文件回退**，两者可共存，同名键以 config.js 为准
+1. 按下面两种方式之一部署（构建脚本 `web/build-config.mjs` 会把环境变量注入为 `web/config.js`，即 `window.__MSPT_ENV__`）：
+   - **方式 A（推荐）**：Vercel 项目 Root Directory 留空（仓库根目录），使用根目录的 `vercel.json`
+   - **方式 B**：Root Directory 设为 `web`，此时 Vercel 读取 `web/vercel.json`（构建命令 `node build-config.mjs`，产物目录 `.`）
+   - 若手写构建命令报 `web/web/... MODULE_NOT_FOUND`，是工作目录已在 `web/` 里、命令又带了 `web/` 前缀所致
+2. 在 Vercel 项目的 Settings → Environment Variables 中添加配置项，键名与 `web/.env.example` 完全一致（`ACCESS_CODE`、`SYNC_TARGETS`、`S3_*`、`GITHUB_*` 等），值直接填明文即可，与 `web/.env` 格式完全相同
+3. 页面读取顺序为：**注入的 config.js 优先 → web/.env 文件回退**，两者可共存，同名键以 config.js 为准
 4. 修改环境变量后需要重新触发部署才会生效（配置是构建时注入的）
 
 本地验证构建产物：

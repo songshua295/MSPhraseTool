@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "node web/build-config.mjs",
+  "buildCommand": "node web/build-config.mjs || node build-config.mjs",
   "outputDirectory": "web",
   "cleanUrls": true
 }

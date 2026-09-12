@@ -321,11 +321,11 @@ SYNC_FILES=*.txt,*.csv，微软拼音短语_*.txt
 | `PHRASE_FORMAT` | 短语文件格式，默认 `sg`（搜狗） |
 | `S3_ENDPOINT_URL` / `S3_REGION` / `S3_BUCKET` / `S3_PATH` / `S3_FILENAME` | S3（兼容 S3 协议）的地址、区域、桶、路径与文件名 |
 | `S3_PUBLIC_URL` | 公开读的基础 URL（加载用）；留空则用签名 GET |
-| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | S3 凭证（建议加密存储） |
+| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | S3 凭证（明文） |
 | `GITHUB_REPO` / `GITHUB_BRANCH` / `GITHUB_PATH` / `GITHUB_FILENAME` | GitHub 仓库、分支、路径与文件名 |
-| `GITHUB_TOKEN` | 需要 contents 写权限的 Token（建议加密存储） |
+| `GITHUB_TOKEN` | 需要 contents 写权限的 Token（明文） |
 
-**凭证加密**：S3 密钥和 GitHub Token 会明文出现在网页可下载的配置文件中，因此推荐用 `index.html` 页脚「配置生成器」生成：输入访问码与明文凭证，得到 `enc:v1:...` 密文（访问码派生的 AES-GCM 密钥加密）。页面解锁时在浏览器内解密，配置文件中不出现明文。
+**安全提示**：凭证为明文配置，凡能访问到 `web/.env` / `web/config.js` / Vercel 环境变量的人才可见——`web/.env` 不进仓库，Vercel 环境变量仅构建时注入产物；请勿把填了真实凭证的配置文件提交到公开仓库。
 
 **S3 上传 CORS**：浏览器直接 PUT 需要 bucket 开启 CORS，示例（Bitiful / AWS S3 控制台均可配置）：
 
@@ -346,7 +346,7 @@ SYNC_FILES=*.txt,*.csv，微软拼音短语_*.txt
 除了 `web/.env` 文件，网页版还支持从 **Vercel 环境变量**读取配置（推荐，无需在仓库/产物中放配置文件）：
 
 1. 仓库根目录已提供 `vercel.json`：构建命令为 `node web/build-config.mjs`，产物目录为 `web`
-2. 在 Vercel 项目的 Settings → Environment Variables 中添加配置项，键名与 `web/.env.example` 完全一致（`ACCESS_CODE_HASH`、`SYNC_TARGETS`、`S3_*`、`GITHUB_*` 等），值同样推荐填配置生成器生成的加密凭证
+2. 在 Vercel 项目的 Settings → Environment Variables 中添加配置项，键名与 `web/.env.example` 完全一致（`ACCESS_CODE_HASH`、`SYNC_TARGETS`、`S3_*`、`GITHUB_*` 等），值直接填明文即可，与 `web/.env` 格式完全相同
 3. 部署时构建脚本会把环境变量注入为 `web/config.js`（`window.__MSPT_ENV__`），页面读取顺序为：**注入的 config.js 优先 → web/.env 文件回退**，两者可共存，同名键以 config.js 为准
 4. 修改环境变量后需要重新触发部署才会生效（配置是构建时注入的）
 

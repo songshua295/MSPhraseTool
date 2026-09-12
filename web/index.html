@@ -230,31 +230,6 @@ powershell -Command "Invoke-WebRequest -Uri 'https://share5.s3.bitiful.net/t/Chs
   .link-list{display:flex;flex-direction:column;gap:8px}
   .link-list a{color:var(--primary-dark);font-size:14px;word-break:break-all}
   .link-list .lk-d{font-size:12px;color:var(--ink-soft)}
-  /* ============ 配置生成器弹窗 ============ */
-  .modal-mask{
-    position:fixed;inset:0;z-index:1100;background:rgba(20,30,28,.55);
-    display:flex;align-items:center;justify-content:center;padding:16px;
-  }
-  .modal-mask.hidden{display:none}
-  .modal-box{
-    background:#fff;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.35);
-    padding:22px 24px;max-width:640px;width:100%;max-height:90vh;overflow:auto;
-  }
-  .modal-box h3{color:var(--primary-dark);font-size:17px;margin-bottom:6px}
-  .modal-box label{
-    display:block;font-size:13px;color:var(--ink-soft);margin-top:12px;
-  }
-  .modal-box label input{
-    display:block;width:100%;margin-top:4px;padding:9px 12px;
-    border:1px solid var(--line);border-radius:10px;font-size:14px;outline:none;
-  }
-  .modal-box label input:focus{border-color:var(--primary)}
-  .modal-box textarea{
-    width:100%;min-height:200px;margin-top:10px;padding:10px 12px;
-    border:1px solid var(--line);border-radius:10px;font-size:12px;
-    font-family:Consolas,monospace;outline:none;resize:vertical;
-  }
-  .modal-actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
   /* ============ 云端/配置 移动端适配 ============ */
   @media (max-width:640px){
     .cloud-row{flex-direction:column;align-items:stretch}
@@ -494,7 +469,6 @@ powershell -Command "Invoke-WebRequest -Uri 'https://share5.s3.bitiful.net/t/Chs
         <div class="link-list">
           <a href="https://github.com/songshua295/MSPhraseTool/releases" target="_blank" rel="noopener">MSPhraseTool 桌面版下载（GitHub Releases）</a>
           <a href="xiaohe-setup.html" target="_blank" rel="noopener">微软拼音 · 小鹤音形完整配置指南</a>
-          <a href="#" id="genOpenLink">🔧 打开配置生成器（生成加密的 web/.env）</a>
         </div>
       </div>
     </div>
@@ -515,23 +489,6 @@ powershell -Command "Invoke-WebRequest -Uri 'https://share5.s3.bitiful.net/t/Chs
   </div>
 </div>
 
-<!-- 配置生成器弹窗 -->
-<div id="genModal" class="modal-mask hidden">
-  <div class="modal-box">
-    <h3>🔧 配置生成器</h3>
-    <p class="hint">输入访问码与明文凭证，生成加密后的 web/.env 内容（凭证以访问码派生的 AES-GCM 密钥加密，配置文件中不以明文出现）。将输出内容保存为网站目录下的 web/.env 即可。访问码的 SHA-256 值会一并生成到 ACCESS_CODE_HASH。</p>
-    <label>访问码<input type="text" id="genCode" autocomplete="off" placeholder="用于加密凭证与解锁页面"></label>
-    <label>S3 Access Key ID<input type="text" id="genAk" autocomplete="off" placeholder="AWS_ACCESS_KEY_ID 明文"></label>
-    <label>S3 Secret Access Key<input type="password" id="genSk" autocomplete="off" placeholder="AWS_SECRET_ACCESS_KEY 明文"></label>
-    <label>GitHub Token<input type="password" id="genToken" autocomplete="off" placeholder="ghp_... 明文（不使用 GitHub 同步可留空）"></label>
-    <div class="modal-actions">
-      <button class="btn" id="genRun">生成 .env 内容</button>
-      <button class="btn ghost sm" id="genCopy" disabled>📋 复制</button>
-      <button class="btn ghost sm" id="genClose">关闭</button>
-    </div>
-    <textarea id="genOut" readonly placeholder="点击「生成 .env 内容」后，加密配置显示在这里……"></textarea>
-  </div>
-</div>
 <div id="toast"></div>
 
 <!-- 构建时生成的配置（Vercel 等平台的环境变量注入，见 web/build-config.mjs；文件不存在时忽略 404） -->
@@ -1397,7 +1354,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     };
   }
 
-  /* ---------- 加密工具（访问码 PBKDF2 → AES-GCM） ---------- */
+  /* ---------- 访问码哈希校验 ---------- */
   function hexStr(u8){ return [...u8].map(b=>b.toString(16).padStart(2, '0')).join(''); }
   async function sha256Hex(str){
     const d = await crypto.subtle.digest('SHA-256', te8.encode(str));
@@ -1409,34 +1366,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
       s += String.fromCharCode.apply(null, u8.subarray(i, i+0x8000));
     return btoa(s);
   }
-  function b64dec(s){
-    const bin = atob(s);
-    const u8 = new Uint8Array(bin.length);
-    for(let i=0;i<bin.length;i++) u8[i] = bin.charCodeAt(i);
-    return u8;
-  }
-  async function deriveAesKey(code, saltU8){
-    const base = await crypto.subtle.importKey('raw', te8.encode(code), 'PBKDF2', false, ['deriveKey']);
-    return crypto.subtle.deriveKey(
-      { name:'PBKDF2', salt: saltU8, iterations: 100000, hash: 'SHA-256' },
-      base, { name:'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
-  }
-  // 密文格式 enc:v1:<salt_b64>:<iv_b64>:<data_b64>
-  async function encryptValue(plain, code){
-    const salt = crypto.getRandomValues(new Uint8Array(16));
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const key = await deriveAesKey(code, salt);
-    const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, te8.encode(plain));
-    return `enc:v1:${b64enc(salt)}:${b64enc(iv)}:${b64enc(new Uint8Array(ct))}`;
-  }
-  async function decryptValue(code, encStr){
-    if(!encStr.startsWith('enc:v1:')) return encStr;
-    const [, , saltS, ivS, ctS] = encStr.split(':');
-    const key = await deriveAesKey(code, b64dec(saltS));
-    const pt = await crypto.subtle.decrypt({ name:'AES-GCM', iv: b64dec(ivS) }, key, b64dec(ctS));
-    return new TextDecoder().decode(pt);
-  }
-  async function maybeDecrypt(code, v){ return v ? decryptValue(code, v) : v; }
 
   /* ---------- AWS SigV4（路径风格，crypto.subtle 实现） ---------- */
   async function hmacRaw(keyBytes, msg){
@@ -1656,13 +1585,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
     if(!cfg) return { ok:false, msg:'配置未加载' };
     if(cfg.accessHash && (await sha256Hex(code)) !== cfg.accessHash)
       return { ok:false, msg:'访问码不正确' };
-    try{
-      cfg.s3.ak = await maybeDecrypt(code, cfg.s3.ak);
-      cfg.s3.sk = await maybeDecrypt(code, cfg.s3.sk);
-      cfg.github.token = await maybeDecrypt(code, cfg.github.token);
-    }catch(e){
-      return { ok:false, msg:'凭证解密失败：访问码不正确，或 .env 中的密文已损坏' };
-    }
     cloudCfg.code = code;
     try{ sessionStorage.setItem('mspt_code', code); }catch(e){}
     populateCloudUI();
@@ -1719,52 +1641,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
     lockInput.focus();
   }
 
-  /* ---------- 配置生成器 ---------- */
-  async function runGenerator(){
-    const code = document.getElementById('genCode').value;
-    if(!code){ toast('请先输入访问码', 'err'); return; }
-    const cur = cloudCfg.raw || {};
-    const s3 = cloudCfg.env ? cloudCfg.env.s3 : null;
-    const gh = cloudCfg.env ? cloudCfg.env.github : null;
-    const pick = (v, d) => (v || '').trim() || d;
-    const ak = document.getElementById('genAk').value.trim();
-    const sk = document.getElementById('genSk').value.trim();
-    const token = document.getElementById('genToken').value.trim();
-    const lines = [
-      '# web/.env —— 网页版短语云同步配置（由配置生成器生成）',
-      '# 凭证以访问码派生的 AES-GCM 密钥加密存储；请将本文件放在 web/ 目录下',
-      '',
-      '# 访问码 SHA-256（用于页面解锁校验）',
-      'ACCESS_CODE_HASH=' + await sha256Hex(code),
-      '',
-      '# 同步目标（逗号分隔，可含 s3、github）；DEFAULT_SOURCE=点击"加载短语"时的默认源',
-      'SYNC_TARGETS=' + pick(cur.SYNC_TARGETS, 's3,github'),
-      'DEFAULT_SOURCE=' + pick(cur.DEFAULT_SOURCE, 's3'),
-      '# 短语文件格式：sg=搜狗 bd=百度 csv=CSV rime=Rime dd=多多',
-      'PHRASE_FORMAT=' + pick(cur.PHRASE_FORMAT, 'sg'),
-      '',
-      '# ===== S3 =====',
-      'S3_ENDPOINT_URL=' + pick(cur.S3_ENDPOINT_URL, 'https://s3.bitiful.net'),
-      'S3_REGION=' + pick(cur.AWS_REGION || cur.S3_REGION, 'cn-east-1'),
-      'S3_BUCKET=' + pick(cur.S3_BUCKET_NAME || cur.S3_BUCKET, 'your-bucket'),
-      'S3_PATH=' + pick(cur.S3_DIRECTORY || cur.S3_PATH, 't/'),
-      'S3_FILENAME=' + pick(cur.S3_FILENAME, 'PhraseEdit.txt'),
-      'S3_PUBLIC_URL=' + pick(cur.S3_PUBLIC_URL, 'https://your-bucket.s3.bitiful.net'),
-      'S3_ACCESS_KEY_ID=' + (ak ? await encryptValue(ak, code) : ''),
-      'S3_SECRET_ACCESS_KEY=' + (sk ? await encryptValue(sk, code) : ''),
-      '',
-      '# ===== GitHub =====',
-      'GITHUB_REPO=' + pick(cur.GITHUB_REPO, 'songshua295/MSPhraseTool'),
-      'GITHUB_BRANCH=' + pick(cur.GITHUB_BRANCH, 'main'),
-      'GITHUB_PATH=' + pick(cur.GITHUB_PATH, 'web/data/'),
-      'GITHUB_FILENAME=' + pick(cur.GITHUB_FILENAME, 'PhraseEdit.txt'),
-      'GITHUB_TOKEN=' + (token ? await encryptValue(token, code) : ''),
-    ];
-    document.getElementById('genOut').value = lines.join('\n');
-    document.getElementById('genCopy').disabled = false;
-    toast('已生成，请复制保存为 web/.env', 'ok');
-  }
-
   // 云端事件绑定
   document.getElementById('cloudLoadBtn').addEventListener('click', cloudLoad);
   document.getElementById('cloudUploadBtn').addEventListener('click', cloudUpload);
@@ -1778,22 +1654,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
         ()=>toast('已复制到剪贴板', 'ok'),
         ()=>toast('复制失败，请手动选择复制', 'err'));
     });
-  });
-
-  // 配置生成器弹窗
-  const genModal = document.getElementById('genModal');
-  document.getElementById('genOpenLink').addEventListener('click', e=>{
-    e.preventDefault(); genModal.classList.remove('hidden');
-  });
-  document.getElementById('genClose').addEventListener('click', ()=>genModal.classList.add('hidden'));
-  genModal.addEventListener('click', e=>{ if(e.target === genModal) genModal.classList.add('hidden'); });
-  document.getElementById('genRun').addEventListener('click', ()=>{
-    runGenerator().catch(err=>{ console.error(err); toast('生成失败：' + err.message, 'err'); });
-  });
-  document.getElementById('genCopy').addEventListener('click', ()=>{
-    navigator.clipboard.writeText(document.getElementById('genOut').value).then(
-      ()=>toast('已复制，保存为 web/.env 即可', 'ok'),
-      ()=>toast('复制失败', 'err'));
   });
 
   initCloud();

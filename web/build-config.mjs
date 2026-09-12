@@ -3,7 +3,7 @@
 // 用法：node web/build-config.mjs
 // 优先读取进程环境变量（Vercel 项目环境变量 / CLI vercel env pull）；
 // 若进程环境中没有任何配置项，则回退读取 web/.env（key=value 格式）。
-// 值可直接使用加密凭证（enc:v1:...），与 web/.env 中的格式完全一致。
+// 值均为明文，与 web/.env 中的格式完全一致，可直接在 Vercel 环境变量中原样填写。
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -49,6 +49,6 @@ if(!Object.keys(kv).length){
   console.log('[build-config] 进程环境中无配置项，已回退读取 web/.env');
 }
 writeFileSync(join(webDir, 'config.js'),
-  '/* 由 web/build-config.mjs 生成，请勿手工编辑；已配置的键不会出现在 web/.env 中的明文凭证 */\n' +
+  '/* 由 web/build-config.mjs 生成，请勿手工编辑 */\n' +
   'window.__MSPT_ENV__=' + JSON.stringify(kv) + ';\n');
 console.log(`[build-config] 已写入 web/config.js（${Object.keys(kv).length} 个配置项）`);

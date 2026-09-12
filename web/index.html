@@ -1330,6 +1330,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     const targets = (kv.SYNC_TARGETS || 's3,github').split(',')
       .map(s=>s.trim().toLowerCase()).filter(s=>s==='s3' || s==='github');
     return {
+      accessCode: (kv.ACCESS_CODE || '').trim(),
       accessHash: (kv.ACCESS_CODE_HASH || '').trim().toLowerCase(),
       syncTargets: targets.length ? targets : ['s3', 'github'],
       defaultSource: (kv.DEFAULT_SOURCE || '').trim().toLowerCase(),
@@ -1583,8 +1584,12 @@ document.addEventListener('DOMContentLoaded', ()=>{
   async function tryUnlock(code){
     const cfg = cloudCfg.env;
     if(!cfg) return { ok:false, msg:'配置未加载' };
-    if(cfg.accessHash && (await sha256Hex(code)) !== cfg.accessHash)
+    // ACCESS_CODE 为明文密码（优先）；ACCESS_CODE_HASH 为 SHA-256 哈希，两者配一个即可
+    if(cfg.accessCode){
+      if(code !== cfg.accessCode) return { ok:false, msg:'访问码不正确' };
+    }else if(cfg.accessHash && (await sha256Hex(code)) !== cfg.accessHash){
       return { ok:false, msg:'访问码不正确' };
+    }
     cloudCfg.code = code;
     try{ sessionStorage.setItem('mspt_code', code); }catch(e){}
     populateCloudUI();
@@ -1606,7 +1611,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     }catch(e){ /* file:// 直接打开或网络错误 */ }
     const merged = { ...(fileKv || {}), ...injected };
     const hasCfg = Object.keys(injected).length > 0 ||
-      (fileKv && (fileKv.ACCESS_CODE_HASH || fileKv.S3_BUCKET || fileKv.S3_BUCKET_NAME || fileKv.GITHUB_REPO || fileKv.SYNC_TARGETS));
+      (fileKv && (fileKv.ACCESS_CODE || fileKv.ACCESS_CODE_HASH || fileKv.S3_BUCKET || fileKv.S3_BUCKET_NAME || fileKv.GITHUB_REPO || fileKv.SYNC_TARGETS));
     if(!hasCfg){
       cloudCfg.offline = true;
       document.getElementById('cloudOffHint').style.display = 'block';

@@ -315,7 +315,8 @@ SYNC_FILES=*.txt,*.csv，微软拼音短语_*.txt
 
 | 配置键 | 说明 |
 | --- | --- |
-| `ACCESS_CODE_HASH` | 访问码的 SHA-256 值，页面打开需输入访问码解锁 |
+| `ACCESS_CODE` | 访问码明文，直接填写即可（与 `ACCESS_CODE_HASH` 二选一，明文优先） |
+| `ACCESS_CODE_HASH` | 访问码的 SHA-256 值（不想在配置里放明文密码时用），页面打开需输入访问码解锁 |
 | `SYNC_TARGETS` | 同步目标，逗号分隔，可含 `s3`、`github`（可单选/多选） |
 | `DEFAULT_SOURCE` | 「加载短语」的默认源；页面上也可下拉切换 |
 | `PHRASE_FORMAT` | 短语文件格式，默认 `sg`（搜狗） |

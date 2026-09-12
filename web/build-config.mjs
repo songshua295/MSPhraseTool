@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const KEYS = [
-  'ACCESS_CODE_HASH', 'SYNC_TARGETS', 'DEFAULT_SOURCE', 'PHRASE_FORMAT',
+  'ACCESS_CODE', 'ACCESS_CODE_HASH', 'SYNC_TARGETS', 'DEFAULT_SOURCE', 'PHRASE_FORMAT',
   'S3_ENDPOINT_URL', 'S3_REGION', 'AWS_REGION',
   'S3_BUCKET', 'S3_BUCKET_NAME', 'S3_PATH', 'S3_DIRECTORY',
   'S3_FILENAME', 'S3_PUBLIC_URL',

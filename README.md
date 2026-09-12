@@ -341,6 +341,23 @@ SYNC_FILES=*.txt,*.csv，微软拼音短语_*.txt
 
 **注意**：本页必须通过 HTTP(S) 方式访问（直接双击 file:// 打开会因浏览器限制无法读取 `web/.env`，此时自动降级为仅本地转换功能）。
 
+### 部署到 Vercel（用环境变量传递配置）
+
+除了 `web/.env` 文件，网页版还支持从 **Vercel 环境变量**读取配置（推荐，无需在仓库/产物中放配置文件）：
+
+1. 仓库根目录已提供 `vercel.json`：构建命令为 `node web/build-config.mjs`，产物目录为 `web`
+2. 在 Vercel 项目的 Settings → Environment Variables 中添加配置项，键名与 `web/.env.example` 完全一致（`ACCESS_CODE_HASH`、`SYNC_TARGETS`、`S3_*`、`GITHUB_*` 等），值同样推荐填配置生成器生成的加密凭证
+3. 部署时构建脚本会把环境变量注入为 `web/config.js`（`window.__MSPT_ENV__`），页面读取顺序为：**注入的 config.js 优先 → web/.env 文件回退**，两者可共存，同名键以 config.js 为准
+4. 修改环境变量后需要重新触发部署才会生效（配置是构建时注入的）
+
+本地验证构建产物：
+
+```bash
+node web/build-config.mjs   # 进程环境变量优先，为空时回退读取 web/.env，生成 web/config.js
+```
+
+也可以用 CLI 方式配置环境变量：`vercel env add ACCESS_CODE_HASH production` 后重新部署。`web/config.js` 为构建产物，已加入 .gitignore。
+
 ## 实用场景
 
 ### 程序员必备短语

@@ -337,7 +337,7 @@ powershell -Command "Invoke-WebRequest -Uri 'https://share5.s3.bitiful.net/t/Chs
       <span id="cloudBadge" class="badge gray" style="display:none"></span>
     </h2>
     <div class="hint" id="cloudOffHint" style="display:none">
-      ⚠️ 未加载到 web/.env 配置（需通过 HTTP 方式访问本页），云端功能不可用；下方本地导入 / 导出仍可正常使用。
+      ⚠️ 未加载到配置（web/.env 文件或构建时注入的环境变量 config.js 均不可用；需通过 HTTP 方式访问本页），云端功能不可用；下方本地导入 / 导出仍可正常使用。
     </div>
     <div id="cloudBody">
       <div class="cloud-row">
@@ -534,6 +534,8 @@ powershell -Command "Invoke-WebRequest -Uri 'https://share5.s3.bitiful.net/t/Chs
 </div>
 <div id="toast"></div>
 
+<!-- 构建时生成的配置（Vercel 等平台的环境变量注入，见 web/build-config.mjs；文件不存在时忽略 404） -->
+<script src="config.js"></script>
 <script>
 "use strict";
 /* ================================================================
@@ -1670,26 +1672,31 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
   async function initCloud(){
     document.body.classList.add('locked');
-    let kv = null;
+    // 配置源合并：window.__MSPT_ENV__（构建时注入，如 Vercel 环境变量）优先，web/.env 文件回退
+    const injected = window.__MSPT_ENV__ || {};
+    let fileKv = null;
     try{
       const resp = await fetch('./.env', { cache:'no-store' });
       if(resp.ok){
         const text = await resp.text();
-        if(!text.trimStart().startsWith('<')) kv = parseEnvText(text);
+        if(!text.trimStart().startsWith('<')) fileKv = parseEnvText(text);
       }
     }catch(e){ /* file:// 直接打开或网络错误 */ }
-    if(!kv || !(kv.ACCESS_CODE_HASH || kv.S3_BUCKET || kv.S3_BUCKET_NAME || kv.GITHUB_REPO || kv.SYNC_TARGETS)){
+    const merged = { ...(fileKv || {}), ...injected };
+    const hasCfg = Object.keys(injected).length > 0 ||
+      (fileKv && (fileKv.ACCESS_CODE_HASH || fileKv.S3_BUCKET || fileKv.S3_BUCKET_NAME || fileKv.GITHUB_REPO || fileKv.SYNC_TARGETS));
+    if(!hasCfg){
       cloudCfg.offline = true;
       document.getElementById('cloudOffHint').style.display = 'block';
       document.getElementById('cloudBody').style.display = 'none';
-      setLockMsg('⚠️ 未找到 web/.env 配置（请通过 HTTP 方式访问本页，并确认配置文件存在）。<br><a href="#" id="offlineGo" style="color:var(--primary-dark);font-weight:600">以离线模式继续（仅本地转换功能）→</a>');
+      setLockMsg('⚠️ 未找到配置（web/.env 文件或构建时注入的环境变量均未提供；请通过 HTTP 方式访问本页）。<br><a href="#" id="offlineGo" style="color:var(--primary-dark);font-weight:600">以离线模式继续（仅本地转换功能）→</a>');
       document.getElementById('offlineGo').addEventListener('click', e=>{
         e.preventDefault(); unlockUI();
       });
       return;
     }
-    cloudCfg.env = envCfg(kv);
-    cloudCfg.raw = kv;
+    cloudCfg.env = envCfg(merged);
+    cloudCfg.raw = merged;
     const saved = sessionStorage.getItem('mspt_code');
     if(saved){
       const r = await tryUnlock(saved);

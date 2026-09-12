@@ -64,6 +64,9 @@ MSPhraseTool/
 # 环境变量配置文件.env
 .env
 
+# 网页版构建时生成的配置（Vercel 等平台环境变量注入）
+web/config.js
+
 # 批处理文件（除了特定的工具包装器）
 *.bat
 MSPhraseTool.bat

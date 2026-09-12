@@ -320,10 +320,12 @@ SYNC_FILES=*.txt,*.csv，微软拼音短语_*.txt
 | `SYNC_TARGETS` | 同步目标，逗号分隔，可含 `s3`、`github`（可单选/多选） |
 | `DEFAULT_SOURCE` | 「加载短语」的默认源；页面上也可下拉切换 |
 | `PHRASE_FORMAT` | 短语文件格式，默认 `sg`（搜狗） |
-| `S3_ENDPOINT_URL` / `S3_REGION` / `S3_BUCKET` / `S3_PATH` / `S3_FILENAME` | S3（兼容 S3 协议）的地址、区域、桶、路径与文件名 |
-| `S3_PUBLIC_URL` | 公开读的基础 URL（加载用）；留空则用签名 GET |
+| `S3_ENDPOINT_URL` / `S3_REGION` / `S3_BUCKET` / `S3_PATH` | S3（兼容 S3 协议）的地址、区域、桶与路径 |
+| `S3_PUBLIC_URL` | 公开读的基础 URL（加载与页脚下载链接用）；留空则用签名 GET |
+| `S3_FILENAME_<格式>` | 可选，覆盖某格式上传的文件名；默认跟随格式（搜狗→`PhraseEdit.txt`、百度→`百度.ini.txt`、CSV→`自定义短语.csv`、Rime/多多/微软 .dat/.lex 同理） |
 | `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | S3 凭证（明文） |
-| `GITHUB_REPO` / `GITHUB_BRANCH` / `GITHUB_PATH` / `GITHUB_FILENAME` | GitHub 仓库、分支、路径与文件名 |
+| `GITHUB_REPO` / `GITHUB_BRANCH` / `GITHUB_PATH` | GitHub 仓库、分支与存放路径 |
+| `GITHUB_FILENAME_<格式>` | 可选，覆盖某格式上传的文件名（默认跟随格式，同上） |
 | `GITHUB_TOKEN` | 需要 contents 写权限的 Token（明文） |
 
 **安全提示**：凭证为明文配置，凡能访问到 `web/.env` / `web/config.js` / Vercel 环境变量的人才可见——`web/.env` 不进仓库，Vercel 环境变量仅构建时注入产物；请勿把填了真实凭证的配置文件提交到公开仓库。

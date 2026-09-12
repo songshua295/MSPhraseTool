@@ -337,7 +337,8 @@ powershell -Command "Invoke-WebRequest -Uri 'https://share5.s3.bitiful.net/t/Chs
         <span id="cloudTargets" class="chk-group"></span>
         <button class="btn amber" id="cloudUploadBtn">☁️ 上传替换</button>
       </div>
-      <div class="hint">「上传替换」会用当前表格内容生成所选格式的文件，直接覆盖远端同名文件（S3 为覆盖上传，GitHub 为一次替换提交）。目标多选可同时上传。</div>
+      <div class="hint">「上传替换」会用当前表格内容生成所选格式的文件，直接覆盖远端同名文件（S3 为覆盖上传，GitHub 为一次替换提交）；目标多选可同时上传。上传的文件名跟随所选格式（搜狗→PhraseEdit.txt、百度→百度.ini.txt……），可在 .env 中用 S3_FILENAME_格式 / GITHUB_FILENAME_格式 覆盖。</div>
+      <div class="stat" id="upTargetHint" style="margin-top:6px"></div>
       <div class="stat" id="cloudUpStat" style="margin-top:6px"></div>
     </div>
   </section>
@@ -457,12 +458,8 @@ powershell -Command "Invoke-WebRequest -Uri 'https://share5.s3.bitiful.net/t/Chs
         </div>
       </div>
       <div class="cfg-item">
-        <div class="t">词库 / 短语在线下载</div>
-        <div class="link-list">
-          <a href="https://s3.bitiful.net/share5/t/百度.ini.txt" target="_blank" rel="noopener">手心输入法短语（百度.ini.txt）<span class="lk-d"> — https://s3.bitiful.net/share5/t/百度.ini.txt</span></a>
-          <a href="https://s3.bitiful.net/share5/t/PhraseEdit.txt" target="_blank" rel="noopener">搜狗输入法短语（PhraseEdit.txt）<span class="lk-d"> — https://s3.bitiful.net/share5/t/PhraseEdit.txt</span></a>
-          <a href="https://share5.s3.bitiful.net/t/ChsPinyinEUDPv1.lex" target="_blank" rel="noopener">微软拼音词库（ChsPinyinEUDPv1.lex）<span class="lk-d"> — https://share5.s3.bitiful.net/t/ChsPinyinEUDPv1.lex</span></a>
-        </div>
+        <div class="t">词库 / 短语在线下载<span class="lk-d">（链接基于 .env 中配置的 S3 地址与路径动态生成）</span></div>
+        <div class="link-list" id="dlLinks"></div>
       </div>
       <div class="cfg-item">
         <div class="t">工具与指南</div>
@@ -1329,6 +1326,16 @@ document.addEventListener('DOMContentLoaded', ()=>{
     }
     const targets = (kv.SYNC_TARGETS || 's3,github').split(',')
       .map(s=>s.trim().toLowerCase()).filter(s=>s==='s3' || s==='github');
+    // 各格式默认文件名（可被 S3_FILENAME_<FMT> / GITHUB_FILENAME_<FMT> 覆盖；S3_FILENAME/GITHUB_FILENAME 视为默认格式的覆盖值）
+    const fmtOverrides = (prefix, fallbackKey) => {
+      const o = {};
+      if(fallbackKey && kv[fallbackKey]) o[kv.PHRASE_FORMAT || 'sg'] = kv[fallbackKey].trim();
+      for(const f of ['sg', 'bd', 'csv', 'rime', 'dd', 'dat', 'lex']){
+        const v = kv[`${prefix}_${f.toUpperCase()}`];
+        if(v && v.trim()) o[f] = v.trim();
+      }
+      return o;
+    };
     return {
       accessCode: (kv.ACCESS_CODE || '').trim(),
       accessHash: (kv.ACCESS_CODE_HASH || '').trim().toLowerCase(),
@@ -1340,7 +1347,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         region: (kv.AWS_REGION || kv.S3_REGION || 'cn-east-1').trim(),
         bucket: (kv.S3_BUCKET_NAME || kv.S3_BUCKET || '').trim(),
         path: (kv.S3_DIRECTORY || kv.S3_PATH || '').trim(),
-        filename: (kv.S3_FILENAME || '').trim(),
+        fileOverrides: fmtOverrides('S3_FILENAME', 'S3_FILENAME'),
         publicUrl: (kv.S3_PUBLIC_URL || '').trim().replace(/\/+$/, ''),
         ak: kv.S3_ACCESS_KEY_ID || kv.AWS_ACCESS_KEY_ID || '',
         sk: kv.S3_SECRET_ACCESS_KEY || kv.AWS_SECRET_ACCESS_KEY || '',
@@ -1349,7 +1356,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         repo: (kv.GITHUB_REPO || '').trim(),
         branch: (kv.GITHUB_BRANCH || 'main').trim(),
         path: ghPath,
-        filename: ghFile || 'PhraseEdit.txt',
+        fileOverrides: fmtOverrides('GITHUB_FILENAME', 'GITHUB_FILENAME'),
         token: kv.GITHUB_TOKEN || '',
       },
     };
@@ -1377,18 +1384,31 @@ document.addEventListener('DOMContentLoaded', ()=>{
   async function sha256HexBytes(u8){
     return hexStr(new Uint8Array(await crypto.subtle.digest('SHA-256', u8)));
   }
-  function s3ObjectKey(){
+  // 各格式的默认文件名（与导出区一致），可被配置覆盖（S3_FILENAME_<FMT> / GITHUB_FILENAME_<FMT>）
+  function baseFileName(fmt){
+    const meta = EXPORT_FMTS.find(x=>x.fmt === fmt);
+    return (meta && meta.file) || (fmt === 'sg' ? 'PhraseEdit.txt' : fmt + '.txt');
+  }
+  function s3FileName(fmt){
+    const o = cloudCfg.env.s3.fileOverrides;
+    return (o && o[fmt]) || baseFileName(fmt);
+  }
+  function ghFileName(fmt){
+    const o = cloudCfg.env.github.fileOverrides;
+    return (o && o[fmt]) || baseFileName(fmt);
+  }
+  function s3ObjectKey(fmt){
     const s3 = cloudCfg.env.s3;
     const dir = s3.path ? (s3.path.endsWith('/') ? s3.path : s3.path + '/') : '';
-    return dir + s3.filename;
+    return dir + s3FileName(fmt);
   }
   function encodeKeyPath(key){ return key.split('/').map(p=>encodeURIComponent(p)).join('/'); }
-  function s3EndpointUrl(){
+  function s3EndpointUrl(fmt){
     const s3 = cloudCfg.env.s3;
-    return `${s3.endpoint}/${s3.bucket}/${encodeKeyPath(s3ObjectKey())}`;
+    return `${s3.endpoint}/${s3.bucket}/${encodeKeyPath(s3ObjectKey(fmt))}`;
   }
-  function s3PublicUrl(){
-    return cloudCfg.env.s3.publicUrl + '/' + encodeKeyPath(s3ObjectKey());
+  function s3PublicUrl(fmt){
+    return cloudCfg.env.s3.publicUrl + '/' + encodeKeyPath(s3ObjectKey(fmt));
   }
   async function s3Request(method, urlStr, bodyU8){
     const s3 = cloudCfg.env.s3;
@@ -1423,9 +1443,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
   }
 
   /* ---------- GitHub Contents API ---------- */
-  function ghApiUrl(){
+  function ghApiUrl(fmt){
     const g = cloudCfg.env.github;
-    return `https://api.github.com/repos/${g.repo}/contents/${encodeKeyPath(g.path + g.filename)}`;
+    return `https://api.github.com/repos/${g.repo}/contents/${encodeKeyPath(g.path + ghFileName(fmt))}`;
   }
   function ghHeaders(raw){
     const g = cloudCfg.env.github;
@@ -1436,7 +1456,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   async function githubGetRaw(){
     const g = cloudCfg.env.github;
     if(!g.repo) throw new Error('GitHub 仓库未配置');
-    const resp = await fetch(ghApiUrl() + '?ref=' + encodeURIComponent(g.branch),
+    const resp = await fetch(ghApiUrl(cloudCfg.env.phraseFmt) + '?ref=' + encodeURIComponent(g.branch),
       { headers: ghHeaders(true), cache:'no-store' });
     if(!resp.ok){
       const hint = resp.status === 404 ? '（文件不存在，检查仓库名 / 分支 / 路径配置）' : '';
@@ -1447,17 +1467,17 @@ document.addEventListener('DOMContentLoaded', ()=>{
   async function githubUpload(bytes, fmtName){
     const g = cloudCfg.env.github;
     if(!g.repo) throw new Error('GitHub 仓库未配置');
-    if(!g.token) throw new Error('GitHub Token 未配置（或访问码解密失败）');
+    if(!g.token) throw new Error('GitHub Token 未配置（检查 GITHUB_TOKEN 配置）');
     let sha = null;
-    const getResp = await fetch(ghApiUrl() + '?ref=' + encodeURIComponent(g.branch), { headers: ghHeaders(false) });
+    const getResp = await fetch(ghApiUrl(fmtName) + '?ref=' + encodeURIComponent(g.branch), { headers: ghHeaders(false) });
     if(getResp.ok) sha = (await getResp.json()).sha;
     else if(getResp.status !== 404)
       throw new Error(`GitHub 读取原文件失败：HTTP ${getResp.status}`);
-    const putResp = await fetch(ghApiUrl(), {
+    const putResp = await fetch(ghApiUrl(fmtName), {
       method: 'PUT',
       headers: ghHeaders(false),
       body: JSON.stringify({
-        message: `update 短语（${FMT_NAMES[fmtName] || fmtName}，${new Date().toLocaleString('zh-CN')}）`,
+        message: `update 短语（${FMT_NAMES[fmtName] || fmtName} ${ghFileName(fmtName)}，${new Date().toLocaleString('zh-CN')}）`,
         content: b64enc(bytes),
         branch: g.branch,
         ...(sha ? { sha } : {}),
@@ -1481,28 +1501,29 @@ document.addEventListener('DOMContentLoaded', ()=>{
     btn.disabled = true; btn.textContent = '⏳ 加载中…';
     stat.className = 'stat';
     try{
+      // 加载的是「默认格式」（PHRASE_FORMAT，默认搜狗）对应的文件
+      const fmt = cloudCfg.env.phraseFmt;
       let buf;
       if(src === 's3'){
         let got = false;
         if(cloudCfg.env.s3.publicUrl){
           try{
-            const r = await fetch(s3PublicUrl(), { cache:'no-store' });
+            const r = await fetch(s3PublicUrl(fmt), { cache:'no-store' });
             if(r.ok){ buf = new Uint8Array(await r.arrayBuffer()); got = true; }
           }catch(e){ /* 公开地址失败，回退签名请求 */ }
         }
         if(!got){
-          const r = await s3Request('GET', s3EndpointUrl());
+          const r = await s3Request('GET', s3EndpointUrl(fmt));
           if(!r.ok) throw new Error('S3 下载失败：HTTP ' + r.status);
           buf = new Uint8Array(await r.arrayBuffer());
         }
       }else{
         buf = await githubGetRaw();
       }
-      // 默认按配置的短语格式（搜狗）解析
-      const fmt = cloudCfg.env.phraseFmt;
+      // 按默认格式解析
       document.getElementById('fmtOverride').value =
         ['bd', 'sg', 'rime', 'dd', 'csv'].includes(fmt) ? fmt : 'auto';
-      const name = src === 's3' ? cloudCfg.env.s3.filename : cloudCfg.env.github.filename;
+      const name = src === 's3' ? s3FileName(fmt) : ghFileName(fmt);
       handleBuffer(buf, name);
       stat.className = 'stat ok';
       stat.textContent = `已从 ${src.toUpperCase()} 加载：${name}`;
@@ -1536,12 +1557,12 @@ document.addEventListener('DOMContentLoaded', ()=>{
     for(const t of targets){
       try{
         if(t === 's3'){
-          const r = await s3Request('PUT', s3EndpointUrl(), bytes);
+          const r = await s3Request('PUT', s3EndpointUrl(fmt), bytes);
           if(!r.ok) throw new Error('HTTP ' + r.status + (r.status === 403 ? '（检查凭证/CORS，按 F12 查看响应）' : ''));
-          results.push(`✅ S3 上传成功：${s3ObjectKey()}（${out.count} 条）`);
+          results.push(`✅ S3 上传成功：${s3ObjectKey(fmt)}（${out.count} 条）`);
         }else{
           const url = await githubUpload(bytes, fmt);
-          results.push(`✅ GitHub 提交成功${url ? '：<a href="' + esc(url) + '" target="_blank" rel="noopener">查看提交</a>' : ''}（${out.count} 条）`);
+          results.push(`✅ GitHub 提交成功（${ghFileName(fmt)}）${url ? '：<a href="' + esc(url) + '" target="_blank" rel="noopener">查看提交</a>' : ''}（${out.count} 条）`);
         }
       }catch(err){
         console.error(err);
@@ -1566,11 +1587,12 @@ document.addEventListener('DOMContentLoaded', ()=>{
   }
   function populateCloudUI(){
     const cfg = cloudCfg.env;
+    const fmt = cfg.phraseFmt;
     const opts = [];
     if(cfg.syncTargets.includes('s3'))
-      opts.push(['s3', `S3：${cfg.s3.bucket}/${s3ObjectKey()}`]);
+      opts.push(['s3', `S3：${cfg.s3.bucket}/${s3ObjectKey(fmt)}`]);
     if(cfg.syncTargets.includes('github'))
-      opts.push(['github', `GitHub：${cfg.github.repo} · ${cfg.github.path}${cfg.github.filename}`]);
+      opts.push(['github', `GitHub：${cfg.github.repo} · ${cfg.github.path}${ghFileName(fmt)}`]);
     const srcSel = document.getElementById('cloudSource');
     srcSel.innerHTML = opts.map(([v, l])=>`<option value="${v}">${esc(l)}</option>`).join('');
     const def = opts.some(([v])=>v === cfg.defaultSource) ? cfg.defaultSource : (opts[0] && opts[0][0]);
@@ -1580,6 +1602,41 @@ document.addEventListener('DOMContentLoaded', ()=>{
     const badge = document.getElementById('cloudBadge');
     badge.style.display = 'inline-block';
     badge.textContent = '同步目标：' + (opts.map(([v])=>v.toUpperCase()).join(' + ') || '未配置');
+    updateUpHint();
+    updateFooterLinks();
+  }
+  // 上传目标提示：随所选格式与勾选目标实时更新
+  function updateUpHint(){
+    const cfg = cloudCfg.env;
+    if(!cfg) return;
+    const fmt = document.getElementById('cloudUpFmt').value;
+    const targets = [...document.querySelectorAll('#cloudTargets input[type=checkbox]:checked')].map(c=>c.value);
+    const parts = [];
+    if(targets.includes('s3')) parts.push(`S3 → ${cfg.s3.bucket}/${s3ObjectKey(fmt)}`);
+    if(targets.includes('github')) parts.push(`GitHub → ${cfg.github.repo}:${cfg.github.path}${ghFileName(fmt)}`);
+    const el = document.getElementById('upTargetHint');
+    el.textContent = parts.length ? `将覆盖：${parts.join('　|　')}` : '（未勾选任何上传目标）';
+  }
+  // 页脚下载链接与 PowerShell 脚本：基于配置的 S3 公开地址/路径与各格式文件名动态生成
+  function updateFooterLinks(){
+    const cfg = cloudCfg.env;
+    const base = (cfg && cfg.s3.publicUrl) || 'https://share5.s3.bitiful.net';
+    const dir = (cfg && cfg.s3.path) ? (cfg.s3.path.endsWith('/') ? cfg.s3.path : cfg.s3.path + '/') : 't/';
+    const url = f => base + '/' + encodeKeyPath(dir + f);
+    const items = [
+      ['手心输入法短语（百度.ini.txt）', '百度.ini.txt'],
+      ['搜狗输入法短语（PhraseEdit.txt）', 'PhraseEdit.txt'],
+      ['CSV 短语（自定义短语.csv）', '自定义短语.csv'],
+      ['Rime 短语（Rime自定义短语.txt）', 'Rime自定义短语.txt'],
+      ['多多短语（多多自定义短语.txt）', '多多自定义短语.txt'],
+      ['微软拼音词库（ChsPinyinEUDPv1.lex）', 'ChsPinyinEUDPv1.lex'],
+    ];
+    const list = document.getElementById('dlLinks');
+    if(list) list.innerHTML = items.map(([label, f]) =>
+      `<a href="${esc(url(f))}" target="_blank" rel="noopener">${label}<span class="lk-d"> — ${esc(url(f))}</span></a>`).join('');
+    const cmdLex = document.getElementById('cmdLex');
+    if(cmdLex) cmdLex.textContent =
+      `del "%APPDATA%\\Microsoft\\InputMethod\\Chs\\ChsPinyinEUDPv1.lex" & powershell -Command "Invoke-WebRequest -Uri '${url('ChsPinyinEUDPv1.lex')}' -OutFile '%APPDATA%\\Microsoft\\InputMethod\\Chs\\ChsPinyinEUDPv1.lex'"`;
   }
   async function tryUnlock(code){
     const cfg = cloudCfg.env;
@@ -1649,6 +1706,11 @@ document.addEventListener('DOMContentLoaded', ()=>{
   // 云端事件绑定
   document.getElementById('cloudLoadBtn').addEventListener('click', cloudLoad);
   document.getElementById('cloudUploadBtn').addEventListener('click', cloudUpload);
+  document.getElementById('cloudUpFmt').addEventListener('change', updateUpHint);
+  document.getElementById('cloudTargets').addEventListener('change', updateUpHint);
+
+  // 页脚下载链接与脚本（未解锁/离线时用默认地址填充）
+  updateFooterLinks();
 
   // 配置命令复制（页脚）
   document.querySelectorAll('[data-copytext]').forEach(btn=>{

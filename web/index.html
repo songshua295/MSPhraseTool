@@ -405,6 +405,20 @@ powershell -Command "Invoke-WebRequest -Uri 'https://share5.s3.bitiful.net/t/Chs
       <div class="search-box">🔍
         <input type="text" id="searchInput" placeholder="搜索拼音 / 编码 / 短语内容……">
       </div>
+      <label style="font-size:13px;color:var(--ink-soft)">匹配
+        <select id="searchMode" class="sel">
+          <option value="fuzzy" selected>模糊（包含）</option>
+          <option value="exact">精确（全等）</option>
+        </select>
+      </label>
+      <label style="font-size:13px;color:var(--ink-soft)">范围
+        <select id="searchScope" class="sel">
+          <option value="all" selected>全部</option>
+          <option value="code">仅编码</option>
+          <option value="word">仅内容</option>
+        </select>
+      </label>
+      <button class="btn ghost sm" id="sortBtn" title="按编码分组、候选位置 1-9 升序排列">⇅ 按编码排序</button>
       <label style="font-size:13px;color:var(--ink-soft)">每页
         <select id="pageSize" class="sel">
           <option>20</option><option selected>50</option><option>100</option><option>200</option>
@@ -930,6 +944,7 @@ function loadEntries(parsed, fmt, merge){
   const rows = parsed.map(e=>({ id: state._idSeq++, code:e.code, order:clampOrder(e.order), word:e.word }));
   if(merge && state.entries.length) state.entries = state.entries.concat(rows);
   else state.entries = rows;
+  sortEntries();
   state.srcFmt = fmt;
   state.page = 1;
   state.search = '';
@@ -1004,10 +1019,26 @@ function handleText(text, name){
  * 表格渲染（搜索 + 分页 + 行内编辑）
  * ================================================================ */
 function getFiltered(){
-  const q = state.search.trim().toLowerCase();
+  const q = state.search.trim();
   if(!q) return state.entries;
-  return state.entries.filter(e=>
-    e.code.toLowerCase().includes(q) || e.word.toLowerCase().includes(q));
+  const modeSel = document.getElementById('searchMode');
+  const scopeSel = document.getElementById('searchScope');
+  const mode = modeSel ? modeSel.value : 'fuzzy';
+  const scope = scopeSel ? scopeSel.value : 'all';
+  const lq = q.toLowerCase();
+  const hit = (v) => mode === 'exact' ? v === q : v.toLowerCase().includes(lq);
+  return state.entries.filter(e=>{
+    if(scope === 'code') return hit(e.code);
+    if(scope === 'word') return hit(e.word);
+    return hit(e.code) || hit(e.word);
+  });
+}
+// 按编码分组、候选位置升序排序（加载后自动执行，也可手动触发）
+function sortEntries(){
+  state.entries.sort((a, b)=>
+    a.code.localeCompare(b.code, 'en', { numeric:true }) ||
+    (clampOrder(a.order) - clampOrder(b.order)) ||
+    a.word.localeCompare(b.word, 'zh-CN'));
 }
 function esc(s){
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1237,6 +1268,20 @@ document.addEventListener('DOMContentLoaded', ()=>{
   // 搜索 / 分页
   document.getElementById('searchInput').addEventListener('input', e=>{
     state.search = e.target.value; state.page = 1; renderTable();
+  });
+  document.getElementById('searchMode').addEventListener('change', ()=>{
+    state.page = 1; renderTable();
+  });
+  document.getElementById('searchScope').addEventListener('change', ()=>{
+    state.page = 1; renderTable();
+  });
+  // 手动按编码 + 候选位置排序
+  document.getElementById('sortBtn').addEventListener('click', ()=>{
+    if(!state.entries.length){ toast('没有可排序的数据', 'err'); return; }
+    sortEntries();
+    state.page = 1;
+    renderTable();
+    toast('已按编码分组、候选位置升序排列', 'ok');
   });
   document.getElementById('pageSize').addEventListener('change', e=>{
     state.pageSize = parseInt(e.target.value, 10); state.page = 1; renderTable();

@@ -2,7 +2,8 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#115e59">
 <title>微软拼音 · 小鹤音形配置指南</title>
 <style>
   :root{
@@ -160,6 +161,53 @@
   #toast.ok{background:var(--ok)}
   #toast.err{background:var(--danger)}
   footer{text-align:center;color:var(--ink-soft);font-size:12px;padding:6px 0 30px}
+  /* ============ 移动端适配 ============ */
+  html{-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:rgba(15,118,110,.15)}
+  body{overflow-x:hidden}
+  @media (max-width:640px){
+    header{padding:calc(18px + env(safe-area-inset-top)) 16px 16px}
+    header h1{font-size:18px;gap:8px}
+    header p{font-size:12.5px;line-height:1.6}
+    .top-links{gap:8px}
+    .top-links a{padding:8px 14px;font-size:12.5px;min-height:38px;display:inline-flex;align-items:center}
+    main{padding:14px 10px calc(36px + env(safe-area-inset-bottom))}
+    .card{padding:14px 12px;border-radius:12px;margin-bottom:14px}
+    .card h2{font-size:16px;margin-bottom:10px;gap:8px}
+    .num{width:24px;height:24px;font-size:13px}
+    .card h3{font-size:14px;margin:14px 0 6px}
+    p.desc{font-size:13px}
+    /* 代码块 */
+    .code-block{border-radius:10px}
+    .code-block pre{font-size:12px;line-height:1.7;padding:40px 12px 12px}
+    .copy-btn{top:8px;right:8px;padding:7px 12px;font-size:12px;min-height:34px}
+    .hint{font-size:12px;line-height:1.5}
+    /* 提示框 */
+    .callout{font-size:12.5px;padding:10px 12px;gap:8px;line-height:1.6}
+    .callout .ico{font-size:14px}
+    /* 版本表：外层容器横向滚动，表格保持最小宽度 */
+    .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:8px;overscroll-behavior:contain}
+    .ver-table{min-width:460px;font-size:12.5px}
+    .ver-table th,.ver-table td{padding:8px 10px}
+    /* 卡片 / 按钮 */
+    .grid{grid-template-columns:1fr;gap:10px}
+    .link-card{padding:14px}
+    .link-card .t{font-size:14px}
+    .btn{min-height:42px;justify-content:center}
+    .pwd-row{gap:8px}
+    .pwd-row .btn{width:100%}
+    .pwd-box{font-size:14px;padding:8px 14px}
+    /* 文件列表改为纵向堆叠 */
+    .file-item{flex-direction:column;align-items:stretch;gap:8px;padding:12px}
+    .file-item .fname{min-width:0;font-size:13.5px}
+    .file-item .furl{min-width:0;font-size:11.5px}
+    .file-item .acts{display:flex;gap:8px}
+    .mini-btn{
+      min-height:40px;display:inline-flex;align-items:center;justify-content:center;
+      flex:1;padding:9px 10px;font-size:12.5px;
+    }
+    #toast{bottom:calc(18px + env(safe-area-inset-bottom));max-width:92vw;font-size:13px;text-align:center}
+    footer{padding:6px 14px calc(22px + env(safe-area-inset-bottom))}
+  }
 </style>
 </head>
 <body>
@@ -247,6 +295,7 @@
   <!-- 其他输入法 -->
   <section class="card">
     <h2>🐾 手心 &amp; 搜狗输入法 · 版本建议</h2>
+    <div class="table-scroll">
     <table class="ver-table">
       <thead>
         <tr><th style="width:130px">平台</th><th style="width:200px">推荐版本</th><th>说明</th></tr>
@@ -271,6 +320,7 @@
         </tr>
       </tbody>
     </table>
+    </div>
     <h3>手心输入法历史版本下载（蓝奏云）</h3>
     <div class="pwd-row">
       <a class="btn amber" href="https://tianzhongs.lanzouq.com/b0fohz93e" target="_blank" rel="noopener">☁️ 打开蓝奏云下载页</a>

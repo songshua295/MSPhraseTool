@@ -10,6 +10,7 @@
 - **交互式编辑**：修改单个短语的拼音、位置或内容
 - **安全备份**：导入前自动备份原文件，不怕搞错
 - **云端同步**：支持上传到 S3 存储，多设备同步，自动生成安装命令
+- **网页版**：纯静态网页（`web/` 目录），支持云端短语加载 / 在线编辑 / 上传替换
 - **批量删除**：清空所有自定义短语（带确认保护）
 
 ## 快速上手
@@ -297,6 +298,48 @@ CONVERT_BEFORE_UPLOAD=true
 # 要同步的文件模式（逗号分隔）
 SYNC_FILES=*.txt,*.csv，微软拼音短语_*.txt
 ```
+
+## 网页版（在线转换与云端同步）
+
+`web/` 目录提供纯静态网页版，无需安装任何东西，把 `web/` 托管到任意静态空间（GitHub Pages、S3 静态托管等）或本地 `python -m http.server` 后访问 `index.html` 即可。
+
+功能：
+
+1. **云端短语**：点击「加载短语」才从配置的源（S3 / GitHub）拉取短语文件（默认搜狗格式）进入表格编辑；编辑完成后点击「上传替换」直接覆盖远端文件（S3 覆盖上传 / GitHub 提交替换），目标可单选或多选
+2. **格式转换**：本地文件 / 远程 URL / 粘贴导入，百度 / 搜狗 / 微软 .dat / .lex / Rime / 多多 / CSV 互转，表格编辑（搜索 + 分页）
+3. **页脚配置命令与下载**：小鹤双拼注册表命令、微软词库 PowerShell 下载命令、各词库在线下载地址、桌面版 EXE 下载
+
+### 网页版配置（web/.env）
+
+复制 `web/.env.example` 为 `web/.env`（已被 .gitignore 忽略）并填写。主要配置项：
+
+| 配置键 | 说明 |
+| --- | --- |
+| `ACCESS_CODE_HASH` | 访问码的 SHA-256 值，页面打开需输入访问码解锁 |
+| `SYNC_TARGETS` | 同步目标，逗号分隔，可含 `s3`、`github`（可单选/多选） |
+| `DEFAULT_SOURCE` | 「加载短语」的默认源；页面上也可下拉切换 |
+| `PHRASE_FORMAT` | 短语文件格式，默认 `sg`（搜狗） |
+| `S3_ENDPOINT_URL` / `S3_REGION` / `S3_BUCKET` / `S3_PATH` / `S3_FILENAME` | S3（兼容 S3 协议）的地址、区域、桶、路径与文件名 |
+| `S3_PUBLIC_URL` | 公开读的基础 URL（加载用）；留空则用签名 GET |
+| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | S3 凭证（建议加密存储） |
+| `GITHUB_REPO` / `GITHUB_BRANCH` / `GITHUB_PATH` / `GITHUB_FILENAME` | GitHub 仓库、分支、路径与文件名 |
+| `GITHUB_TOKEN` | 需要 contents 写权限的 Token（建议加密存储） |
+
+**凭证加密**：S3 密钥和 GitHub Token 会明文出现在网页可下载的配置文件中，因此推荐用 `index.html` 页脚「配置生成器」生成：输入访问码与明文凭证，得到 `enc:v1:...` 密文（访问码派生的 AES-GCM 密钥加密）。页面解锁时在浏览器内解密，配置文件中不出现明文。
+
+**S3 上传 CORS**：浏览器直接 PUT 需要 bucket 开启 CORS，示例（Bitiful / AWS S3 控制台均可配置）：
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://你的站点域名"],
+    "AllowedMethods": ["GET", "PUT"],
+    "AllowedHeaders": ["*"]
+  }
+]
+```
+
+**注意**：本页必须通过 HTTP(S) 方式访问（直接双击 file:// 打开会因浏览器限制无法读取 `web/.env`，此时自动降级为仅本地转换功能）。
 
 ## 实用场景
 
